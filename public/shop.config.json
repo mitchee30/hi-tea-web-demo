@@ -1,0 +1,121 @@
+{
+  "_readme": "换一家店，只需要改这个文件：店名、配色、营业时间、税率、初始菜单。菜单第一次启动服务器时写入数据库，之后在店员后台修改。",
+
+  "shop": {
+    "name": "Hi Tea",
+    "tagline": { "zh": "今天，想怎么喝？", "en": "How do you want it today?" },
+    "fictional": true,
+    "address": "University Plaza, Waterloo, ON",
+    "city": { "zh": "Kitchener-Waterloo", "en": "Kitchener-Waterloo" },
+    "lat": 43.47,
+    "lon": -80.53,
+    "timezone": "America/Toronto",
+    "currency": "CAD",
+    "taxRate": 0.13,
+    "taxName": "HST"
+  },
+
+  "theme": {
+    "bg": "#F4EEF8",
+    "ink": "#2B1D3F",
+    "inkSoft": "#6B5C80",
+    "accent": "#9A5A26",
+    "accentDark": "#7C4519",
+    "line": "#DDD0E8",
+    "soft1": "#E4D7F4",
+    "soft2": "#FFF1DE",
+    "soft3": "#FBE0E7"
+  },
+
+  "hours": {
+    "open": "11:00",
+    "close": "22:00",
+    "prepMinutes": 10,
+    "slotMinutes": 15,
+    "demoAlwaysOpen": true,
+    "_demoAlwaysOpen": "演示用：任何时间都能下单。给真店用时改成 false"
+  },
+
+  "features": {
+    "wheel": true,
+    "music": true,
+    "tableOrdering": true,
+    "maxToppings": 3
+  },
+
+  "menu": {
+    "teas": [
+      { "id": "black",   "name": { "zh": "红茶",     "en": "Black tea" },     "top": "#B5652B", "bottom": "#5E2A0C", "price": 5.50, "available": true },
+      { "id": "oolong",  "name": { "zh": "乌龙",     "en": "Oolong" },        "top": "#D29447", "bottom": "#8A4F17", "price": 5.80, "available": true },
+      { "id": "jasmine", "name": { "zh": "茉莉绿茶", "en": "Jasmine green" }, "top": "#E4D58A", "bottom": "#A88F33", "price": 5.50, "available": true },
+      { "id": "matcha",  "name": { "zh": "抹茶",     "en": "Matcha" },        "top": "#A9CB87", "bottom": "#4E7E3C", "price": 6.50, "available": true },
+      { "id": "taro",    "name": { "zh": "芋头",     "en": "Taro" },          "top": "#CDB6EA", "bottom": "#7D5DB0", "price": 6.50, "available": true },
+      { "id": "thai",    "name": { "zh": "泰式茶",   "en": "Thai tea" },      "top": "#F6A85A", "bottom": "#C45E1C", "price": 5.80, "available": true },
+      { "id": "fruit",   "name": { "zh": "水果茶",   "en": "Fruit tea" },     "top": "#FF9AA8", "bottom": "#D9304F", "price": 6.50, "available": true }
+    ],
+    "milks": [
+      { "id": "none", "name": { "zh": "不加奶", "en": "No milk" },  "mix": 0,    "price": 0,    "available": true },
+      { "id": "milk", "name": { "zh": "牛奶",   "en": "Milk" },     "mix": 0.45, "price": 0,    "available": true },
+      { "id": "oat",  "name": { "zh": "燕麦奶", "en": "Oat milk" }, "mix": 0.40, "price": 0.50, "available": true }
+    ],
+    "sweets": [
+      { "id": 0,   "name": { "zh": "无糖",   "en": "0% sugar" } },
+      { "id": 30,  "name": { "zh": "三分糖", "en": "30% sugar" } },
+      { "id": 50,  "name": { "zh": "五分糖", "en": "50% sugar" } },
+      { "id": 70,  "name": { "zh": "七分糖", "en": "70% sugar" } },
+      { "id": 100, "name": { "zh": "全糖",   "en": "100% sugar" } }
+    ],
+    "ices": [
+      { "id": "hot",    "name": { "zh": "热的",   "en": "Hot" },        "cubes": 0 },
+      { "id": "noice",  "name": { "zh": "去冰",   "en": "No ice" },     "cubes": 0 },
+      { "id": "less",   "name": { "zh": "少冰",   "en": "Less ice" },   "cubes": 2 },
+      { "id": "normal", "name": { "zh": "正常冰", "en": "Normal ice" }, "cubes": 4 }
+    ],
+    "sizes": [
+      { "id": "M", "name": { "zh": "中杯", "en": "Medium" }, "price": 0 },
+      { "id": "L", "name": { "zh": "大杯", "en": "Large" },  "price": 0.80 }
+    ],
+    "toppings": [
+      { "id": "pearl",    "name": { "zh": "珍珠",     "en": "Pearls" },             "light": "#6B4A3A", "dark": "#120806", "r": 8,  "count": 18, "zone": "bottom", "price": 0.75, "available": true },
+      { "id": "brown",    "name": { "zh": "黑糖珍珠", "en": "Brown sugar pearls" }, "light": "#C2742F", "dark": "#3A1A06", "r": 8,  "count": 18, "zone": "bottom", "price": 0.90, "available": true },
+      { "id": "coco",     "name": { "zh": "椰果",     "en": "Coconut jelly" },      "light": "#FFFFFF", "dark": "#E6DEC8", "r": 7,  "count": 10, "zone": "float",  "price": 0.75, "available": true },
+      { "id": "taroball", "name": { "zh": "芋圆",     "en": "Taro balls" },         "light": "#E7DAF7", "dark": "#8C6BC2", "r": 10, "count": 8,  "zone": "bottom", "price": 1.00, "available": true },
+      { "id": "pudding",  "name": { "zh": "布丁",     "en": "Pudding" },            "light": "#FFE69A", "dark": "#E0A12A", "r": 22, "count": 1,  "zone": "bottom", "price": 1.00, "available": true },
+      { "id": "cheese",   "name": { "zh": "芝士奶盖", "en": "Cheese foam" },        "light": "#FFFBEF", "dark": "#F3DDA8", "r": 0,  "count": 0,  "zone": "top",    "price": 1.25, "available": true }
+    ],
+    "drinks": [
+      { "id": "brown-sugar", "active": true,
+        "name": { "zh": "黑糖珍珠鲜奶", "en": "Brown Sugar Pearl Milk" }, "short": { "zh": "黑糖珍珠", "en": "Brown Sugar" },
+        "desc": { "zh": "黑糖沿着杯壁挂出虎纹，珍珠现煮。", "en": "Brown sugar syrup streaks down the cup, with fresh pearls." },
+        "preset": { "tea": "black", "milk": "milk", "sweet": 70, "ice": "less", "size": "M", "tops": ["brown"] }, "tags": ["sweet", "warmok", "cozy"] },
+      { "id": "classic", "active": true,
+        "name": { "zh": "经典珍珠奶茶", "en": "Classic Bubble Milk Tea" }, "short": { "zh": "珍珠奶茶", "en": "Classic" },
+        "desc": { "zh": "红茶加鲜奶，最经典的那一杯。", "en": "Black tea and milk. The one that started it all." },
+        "preset": { "tea": "black", "milk": "milk", "sweet": 50, "ice": "normal", "size": "M", "tops": ["pearl"] }, "tags": ["caffeine", "warmok", "classic"] },
+      { "id": "taro", "active": true,
+        "name": { "zh": "芋泥波波", "en": "Taro Paste Boba" }, "short": { "zh": "芋泥波波", "en": "Taro Boba" },
+        "desc": { "zh": "芋头鲜奶，芋圆和珍珠双份嚼感。", "en": "Taro milk with taro balls and pearls." },
+        "preset": { "tea": "taro", "milk": "milk", "sweet": 50, "ice": "less", "size": "M", "tops": ["taroball", "pearl"] }, "tags": ["sweet", "warmok", "cozy"] },
+      { "id": "strawberry", "active": true,
+        "name": { "zh": "草莓椰椰", "en": "Strawberry Coconut" }, "short": { "zh": "草莓椰椰", "en": "Strawberry" },
+        "desc": { "zh": "酸甜果茶配椰果，夏天的味道。", "en": "Sweet-tart fruit tea with coconut jelly." },
+        "preset": { "tea": "fruit", "milk": "none", "sweet": 50, "ice": "normal", "size": "M", "tops": ["coco"] }, "tags": ["fruity", "fresh"] },
+      { "id": "matcha", "active": true,
+        "name": { "zh": "抹茶椰椰", "en": "Matcha Coconut" }, "short": { "zh": "抹茶椰椰", "en": "Matcha" },
+        "desc": { "zh": "燕麦奶打底，抹茶微苦回甘。", "en": "Matcha on oat milk, a little bitter, a little sweet." },
+        "preset": { "tea": "matcha", "milk": "oat", "sweet": 30, "ice": "normal", "size": "M", "tops": ["coco"] }, "tags": ["caffeine", "fresh"] },
+      { "id": "thai", "active": true,
+        "name": { "zh": "泰式珍珠奶茶", "en": "Thai Milk Tea with Pearls" }, "short": { "zh": "泰式奶茶", "en": "Thai Tea" },
+        "desc": { "zh": "橙色的泰式茶，香料味浓郁。", "en": "Bright orange Thai tea with warm spice." },
+        "preset": { "tea": "thai", "milk": "milk", "sweet": 70, "ice": "normal", "size": "M", "tops": ["pearl"] }, "tags": ["caffeine", "sweet"] },
+      { "id": "jasmine", "active": true,
+        "name": { "zh": "茉莉奶盖绿茶", "en": "Jasmine Cheese Foam" }, "short": { "zh": "茉莉奶盖", "en": "Jasmine" },
+        "desc": { "zh": "清爽绿茶，顶上一层咸甜奶盖。", "en": "Light jasmine green tea under salty-sweet cheese foam." },
+        "preset": { "tea": "jasmine", "milk": "none", "sweet": 30, "ice": "less", "size": "M", "tops": ["cheese"] }, "tags": ["caffeine", "fresh"] },
+      { "id": "oolong", "active": true,
+        "name": { "zh": "乌龙布丁奶茶", "en": "Oolong Pudding Milk Tea" }, "short": { "zh": "乌龙布丁", "en": "Oolong" },
+        "desc": { "zh": "焙火乌龙配一整块滑嫩布丁。", "en": "Roasted oolong milk tea with a whole pudding." },
+        "preset": { "tea": "oolong", "milk": "milk", "sweet": 50, "ice": "less", "size": "M", "tops": ["pudding"] }, "tags": ["caffeine", "warmok", "classic"] }
+    ]
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "hi-tea",
+  "version": "1.0.0",
+  "description": "Hi Tea: interactive bubble tea ordering system (customer site + staff dashboard)",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "node --test test/api.test.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "express": "^4.22.3",
+    "qrcode": "^1.5.4",
+    "stripe": "^23.0.0",
+    "ws": "^8.22.0"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=20.12"
+  }
+}

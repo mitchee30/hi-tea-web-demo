@@ -1,0 +1,23 @@
+# Render 一键部署配置：在 Render 里选 "New → Blueprint"，连上这个 GitHub 仓库即可。
+# One-click deploy on Render: "New → Blueprint", then connect this repo.
+services:
+  - type: web
+    name: hi-tea
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/config
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: ADMIN_PIN
+        sync: false          # 部署时 Render 会让你填 / Render asks you for this on deploy
+      - key: PUBLIC_URL
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false

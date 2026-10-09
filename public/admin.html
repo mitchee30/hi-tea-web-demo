@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>店员后台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body class="admin">
+
+<!-- ========== 登录 ========== -->
+<section class="login" id="loginView">
+  <form class="login-card" id="loginForm">
+    <h1 class="display" id="loginShop">Hi Tea</h1>
+    <p data-i18n="a.loginTitle"></p>
+    <label class="lbl" for="pin" data-i18n="a.pin"></label>
+    <input class="field pin" id="pin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="12" required>
+    <p class="form-error" id="loginError" role="alert" hidden></p>
+    <button class="btn btn-big btn-block" type="submit" data-i18n="a.login"></button>
+    <p class="hint" id="loginDemo" data-i18n="a.noServer" hidden></p>
+  </form>
+</section>
+
+<!-- ========== 后台主界面 ========== -->
+<div class="app" id="appView" hidden>
+  <header class="a-top">
+    <div class="a-brand"><span class="display" id="shopName">Hi Tea</span> <span data-i18n="a.title"></span></div>
+    <nav class="a-tabs" role="tablist">
+      <button role="tab" data-tab="orders" aria-selected="true"><span data-i18n="a.tabOrders"></span> <span class="badge" id="newCount" hidden>0</span></button>
+      <button role="tab" data-tab="menu" aria-selected="false" data-i18n="a.tabMenu"></button>
+      <button role="tab" data-tab="qr" aria-selected="false" data-i18n="a.tabQr"></button>
+    </nav>
+    <div class="a-tools">
+      <span class="live" id="liveDot" data-state="off"><span class="dot"></span><span id="liveText"></span></span>
+      <button class="icon-btn" id="alertBtn" aria-pressed="true"><span aria-hidden="true">🔔</span> <span data-i18n="a.alert"></span></button>
+      <button class="icon-btn" id="aLangBtn"><span data-i18n="tool.lang"></span></button>
+      <button class="icon-btn" id="logoutBtn" data-i18n="a.logout"></button>
+    </div>
+  </header>
+
+  <!-- 订单看板 -->
+  <section class="a-panel" id="tab-orders">
+    <div class="board">
+      <div class="col" data-col="new">
+        <h2><span data-i18n="ord.s.new"></span> <span class="count" id="c-new"></span></h2>
+        <div class="cards" id="col-new"></div>
+      </div>
+      <div class="col" data-col="making">
+        <h2><span data-i18n="ord.s.making"></span> <span class="count" id="c-making"></span></h2>
+        <div class="cards" id="col-making"></div>
+      </div>
+      <div class="col" data-col="ready">
+        <h2><span data-i18n="a.waitingPickup"></span> <span class="count" id="c-ready"></span></h2>
+        <div class="cards" id="col-ready"></div>
+      </div>
+    </div>
+    <details class="done-list">
+      <summary><span data-i18n="a.doneToday"></span> <span id="doneSummary"></span></summary>
+      <ul id="doneList"></ul>
+    </details>
+  </section>
+
+  <!-- 菜单管理 -->
+  <section class="a-panel" id="tab-menu" hidden>
+    <p class="hint" data-i18n="a.menuHint"></p>
+    <div id="menuEditor"></div>
+    <div class="save-bar" id="saveBar">
+      <span id="saveState"></span>
+      <button class="btn ghost" id="resetMenuBtn" data-i18n="a.resetMenu"></button>
+      <button class="btn" id="saveMenuBtn" data-i18n="a.save"></button>
+    </div>
+  </section>
+
+  <!-- 桌号二维码 -->
+  <section class="a-panel" id="tab-qr" hidden>
+    <div class="qr-controls">
+      <label class="lbl" for="qrCount" data-i18n="a.tables"></label>
+      <input class="field" id="qrCount" type="number" min="1" max="60" value="8">
+      <button class="btn" id="qrMake" data-i18n="a.makeQr"></button>
+      <button class="btn ghost" id="qrPrint" data-i18n="a.print"></button>
+    </div>
+    <p class="hint" id="qrHint"></p>
+    <div class="qr-grid" id="qrGrid"></div>
+  </section>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="i18n.js"></script>
+<script src="pricing.js"></script>
+<script src="sound.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

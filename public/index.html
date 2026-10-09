@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hi Tea</title>
+<meta name="description" content="Order bubble tea online: build your own drink, pick from the menu, pay online or at the counter.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="loading">
+
+<div class="demo-ribbon" id="ribbon" data-i18n="ribbon" hidden></div>
+
+<!-- ========== 顶部导航：每个页面都一样 ========== -->
+<header class="topbar">
+  <a class="logo display" href="#/" id="logo">Hi Tea</a>
+  <span class="table-badge" id="tableBadge" hidden></span>
+  <nav class="tabs" aria-label="Main">
+    <a href="#/" data-route="home"><span class="tab-icon" aria-hidden="true">⌂</span><span data-i18n="nav.home"></span></a>
+    <a href="#/diy" data-route="diy"><span class="tab-icon" aria-hidden="true">✦</span><span data-i18n="nav.diy"></span></a>
+    <a href="#/menu" data-route="menu"><span class="tab-icon" aria-hidden="true">☰</span><span data-i18n="nav.menu"></span></a>
+    <a href="#/wheel" data-route="wheel" id="navWheel"><span class="tab-icon" aria-hidden="true">◎</span><span data-i18n="nav.wheel"></span></a>
+  </nav>
+  <div class="tools">
+    <a class="order-chip" id="orderChip" hidden></a>
+    <button class="icon-btn" id="langBtn" data-i18n-label="tool.langLabel"><span data-i18n="tool.lang"></span></button>
+    <button class="icon-btn" id="musicBtn" aria-pressed="false">
+      <span aria-hidden="true">♪</span><span class="tool-label" data-i18n="tool.music"></span>
+    </button>
+    <button class="icon-btn" id="sfxBtn" aria-pressed="true">
+      <span aria-hidden="true">🔔</span><span class="tool-label" data-i18n="tool.sfx"></span>
+    </button>
+    <button class="cart-btn" id="cartBtn">
+      <span aria-hidden="true">🛍</span><span class="tool-label" data-i18n="tool.cart"></span>
+      <span class="badge" id="cartCount">0</span>
+    </button>
+  </div>
+</header>
+
+<main>
+  <!-- ========== 首页：三个入口 ========== -->
+  <section class="view view-home" id="view-home" aria-labelledby="home-title">
+    <div class="hero">
+      <h1 id="home-title" tabindex="-1"></h1>
+      <p class="hero-sub" data-i18n="home.sub"></p>
+    </div>
+    <div class="entries">
+      <a class="entry entry-diy" href="#/diy">
+        <div class="entry-art" id="homeCup"></div>
+        <div class="entry-text">
+          <h2 data-i18n="home.diy"></h2>
+          <p data-i18n="home.diyDesc"></p>
+          <span class="entry-go" data-i18n="home.go"></span>
+        </div>
+      </a>
+      <a class="entry entry-menu" href="#/menu">
+        <div class="entry-art" id="homeMenuCups"></div>
+        <div class="entry-text">
+          <h2 data-i18n="home.menu"></h2>
+          <p data-i18n="home.menuDesc"></p>
+        </div>
+      </a>
+      <a class="entry entry-wheel" href="#/wheel" id="homeWheelEntry">
+        <div class="entry-art"><svg viewBox="0 0 400 400" class="mini-wheel" id="homeWheel" aria-hidden="true"></svg></div>
+        <div class="entry-text">
+          <h2 data-i18n="home.wheel"></h2>
+          <p data-i18n="home.wheelDesc"></p>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <!-- ========== 自己调一杯 ========== -->
+  <section class="view view-diy" id="view-diy" aria-labelledby="diy-title" hidden>
+    <div class="view-head">
+      <a class="back" href="#/" data-i18n="back"></a>
+      <h1 id="diy-title" tabindex="-1" data-i18n="diy.title"></h1>
+    </div>
+    <div class="builder">
+      <div class="cup-stage">
+        <div class="cup-box" id="diyCup"></div>
+        <div class="stage-info">
+          <p class="summary" id="summary" aria-live="polite"></p>
+          <div class="price-row">
+            <span class="price" id="price">$0.00</span>
+            <button class="btn" id="addDiyBtn" data-i18n="diy.add"></button>
+          </div>
+          <div class="stage-links">
+            <button class="link-btn" id="shareBtn" data-i18n="diy.share"></button>
+            <button class="link-btn" id="resetBtn" data-i18n="diy.reset"></button>
+          </div>
+        </div>
+      </div>
+      <ol class="steps">
+        <li class="step"><h3 data-i18n="step.tea"></h3><div class="chips" id="opt-tea"></div></li>
+        <li class="step"><h3 data-i18n="step.milk"></h3><div class="chips" id="opt-milk"></div></li>
+        <li class="step"><h3 data-i18n="step.sweet"></h3><div class="chips" id="opt-sweet"></div></li>
+        <li class="step"><h3 data-i18n="step.ice"></h3><div class="chips" id="opt-ice"></div></li>
+        <li class="step"><h3 data-i18n="step.size"></h3><div class="chips" id="opt-size"></div></li>
+        <li class="step"><h3><span data-i18n="step.tops"></span> <small id="topsMax"></small></h3><div class="chips" id="opt-top"></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ========== 招牌菜单 ========== -->
+  <section class="view view-menu" id="view-menu" aria-labelledby="menu-title" hidden>
+    <div class="view-head">
+      <a class="back" href="#/" data-i18n="back"></a>
+      <h1 id="menu-title" tabindex="-1" data-i18n="menu.title"></h1>
+      <p class="view-sub" data-i18n="menu.sub"></p>
+    </div>
+    <ul class="menu-grid" id="menuGrid"></ul>
+  </section>
+
+  <!-- ========== 今天喝什么 ========== -->
+  <section class="view view-wheel" id="view-wheel" aria-labelledby="wheel-title" hidden>
+    <div class="view-head">
+      <a class="back" href="#/" data-i18n="back"></a>
+      <h1 id="wheel-title" tabindex="-1" data-i18n="wheel.title"></h1>
+    </div>
+    <div class="spin-layout">
+      <div class="spin-controls">
+        <p class="weather" id="weather"></p>
+        <h3 data-i18n="wheel.mood"></h3>
+        <div class="chips" id="opt-mood"></div>
+        <button class="btn btn-big" id="spinBtn" data-i18n="wheel.spin"></button>
+        <div class="result" id="result" hidden>
+          <div class="result-cup" id="resultCup"></div>
+          <div class="result-text" aria-live="polite">
+            <strong id="resultName"></strong>
+            <p id="resultWhy"></p>
+            <div class="result-actions">
+              <button class="btn" id="resultAdd" data-i18n="wheel.add"></button>
+              <button class="btn ghost" id="resultDiy" data-i18n="wheel.custom"></button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="wheel-wrap">
+        <div class="pointer" aria-hidden="true"></div>
+        <svg id="wheel" viewBox="0 0 400 400" aria-hidden="true"><g id="wheel-rot"></g></svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 结账 ========== -->
+  <section class="view view-checkout" id="view-checkout" aria-labelledby="co-title" hidden>
+    <div class="view-head">
+      <a class="back" href="#/menu" data-i18n="cart.toMenu"></a>
+      <h1 id="co-title" tabindex="-1" data-i18n="co.title"></h1>
+    </div>
+    <p class="notice" id="coDemo" data-i18n="co.demo" hidden></p>
+    <p class="notice warn" id="coClosed" hidden></p>
+    <div class="co-empty" id="coEmpty" hidden>
+      <p data-i18n="co.empty"></p>
+      <a class="btn" href="#/menu" data-i18n="cart.toMenu"></a>
+    </div>
+    <form class="checkout" id="coForm" novalidate>
+      <div class="co-main">
+        <fieldset class="co-block" id="coHowBlock">
+          <legend data-i18n="co.how"></legend>
+          <div class="seg" id="coHow"></div>
+        </fieldset>
+        <fieldset class="co-block" id="coTimeBlock">
+          <legend data-i18n="co.time"></legend>
+          <select id="coTime" class="field"></select>
+        </fieldset>
+        <fieldset class="co-block">
+          <label class="lbl" for="coName"><span data-i18n="co.name"></span></label>
+          <input class="field" id="coName" autocomplete="given-name" maxlength="30" data-i18n-ph="co.namePh">
+          <label class="lbl" for="coPhone" data-i18n="co.phone"></label>
+          <input class="field" id="coPhone" type="tel" autocomplete="tel" maxlength="20">
+          <label class="lbl" for="coNote" data-i18n="co.note"></label>
+          <textarea class="field" id="coNote" rows="2" maxlength="140" data-i18n-ph="co.notePh"></textarea>
+        </fieldset>
+        <fieldset class="co-block">
+          <legend data-i18n="co.pay"></legend>
+          <div class="seg" id="coPay"></div>
+          <p class="hint" id="coPayHint" data-i18n="co.payOnlineHint" hidden></p>
+        </fieldset>
+      </div>
+      <aside class="co-side">
+        <h2 data-i18n="co.items"></h2>
+        <ul class="co-items" id="coItems"></ul>
+        <dl class="co-totals">
+          <div><dt data-i18n="co.subtotal"></dt><dd id="coSub"></dd></div>
+          <div><dt id="coTaxLabel"></dt><dd id="coTax"></dd></div>
+          <div class="grand"><dt data-i18n="co.total"></dt><dd id="coTotal"></dd></div>
+        </dl>
+        <p class="form-error" id="coError" role="alert" hidden></p>
+        <button class="btn btn-big btn-block" id="coSubmit" type="submit"></button>
+      </aside>
+    </form>
+  </section>
+
+  <!-- ========== 订单状态 ========== -->
+  <section class="view view-order" id="view-order" aria-labelledby="ord-title" hidden>
+    <div class="order-card" id="orderCard">
+      <p class="ord-label" data-i18n="ord.number"></p>
+      <h1 class="ord-number" id="ord-title" tabindex="-1"></h1>
+      <p class="ord-status" id="ordStatus" aria-live="polite"></p>
+      <ol class="ord-steps" id="ordSteps"></ol>
+      <div class="ord-banner" id="ordBanner" hidden></div>
+      <div class="ord-pay" id="ordPay" hidden>
+        <p id="ordPayText"></p>
+        <div class="result-actions">
+          <button class="btn" id="ordPayNow" data-i18n="ord.payNow"></button>
+          <button class="btn ghost" id="ordPayStore" data-i18n="ord.payInStore"></button>
+        </div>
+      </div>
+      <dl class="ord-info" id="ordInfo"></dl>
+      <ul class="co-items" id="ordItems"></ul>
+      <dl class="co-totals" id="ordTotals"></dl>
+      <div class="ord-actions">
+        <button class="link-btn" id="ordNotify" data-i18n="ord.notify" hidden></button>
+        <a class="btn ghost" href="#/menu" data-i18n="ord.again"></a>
+      </div>
+      <p class="ord-live" id="ordLive" data-i18n="ord.live"></p>
+    </div>
+    <p class="notice" id="ordMissing" data-i18n="ord.notFound" hidden></p>
+  </section>
+</main>
+
+<footer class="site-foot" id="foot" data-i18n="foot"></footer>
+
+<!-- ========== 购物车 ========== -->
+<dialog class="drawer" id="cartDialog" aria-labelledby="cart-title">
+  <div class="drawer-head">
+    <h2 id="cart-title" data-i18n="cart.title"></h2>
+    <button class="icon-btn close" id="cartClose" aria-label="Close">✕</button>
+  </div>
+  <ul class="cart-list" id="cartList"></ul>
+  <div class="cart-empty" id="cartEmpty">
+    <p data-i18n="cart.empty"></p>
+    <a class="btn ghost" href="#/menu" id="cartToMenu" data-i18n="cart.toMenu"></a>
+  </div>
+  <div class="cart-foot" id="cartFoot">
+    <div class="cart-total"><span data-i18n="cart.subtotal"></span><span id="cartTotal">$0.00</span></div>
+    <a class="btn btn-big btn-block" href="#/checkout" id="checkoutBtn" data-i18n="cart.checkout"></a>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="i18n.js"></script>
+<script src="pricing.js"></script>
+<script src="api.js"></script>
+<script src="sound.js"></script>
+<script src="cup.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

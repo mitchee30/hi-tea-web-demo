@@ -18,6 +18,9 @@ const Cup = (() => {
   const CUP_PATH = 'M32 70 L208 70 L188 318 Q186 334 170 334 L70 334 Q54 334 52 318 Z';
 
   let instanceCount = 0;
+  // 菜单从服务器读取，启动后由 script.js 调用 Cup.setMenu(菜单) 设置进来
+  let MENU = null;
+  const menu = () => MENU;
   const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   /* ---------- 小工具 ---------- */
@@ -51,8 +54,8 @@ const Cup = (() => {
 
   /* ---------- 液体颜色：茶底渐变 + 奶 + 糖 ---------- */
   function liquidColors(recipe) {
-    const tea = TEAS.find(t => t.id === recipe.tea);
-    const milk = MILKS.find(m => m.id === recipe.milk);
+    const tea = menu().teas.find(t => t.id === recipe.tea) || menu().teas[0];
+    const milk = menu().milks.find(m => m.id === recipe.milk) || menu().milks[0];
     let top = mix(tea.top, '#FBF3EA', milk.mix * 1.1);
     let mid = mix(mix(tea.top, tea.bottom, 0.5), '#F6EADC', milk.mix * 0.85);
     let bottom = mix(tea.bottom, '#EAD6C2', milk.mix * 0.55);
@@ -144,12 +147,19 @@ const Cup = (() => {
     const waveGrad = el('linearGradient', { id: `${id}-wave`, x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
     const waveStops = [0, 1].map(o => el('stop', { offset: o }, waveGrad));
 
-    // 每种小料一个"球面"渐变，左上角亮、右下角暗，看起来是立体的
-    TOPPINGS.forEach(t => {
-      const rg = el('radialGradient', { id: `${id}-${t.id}`, cx: '35%', cy: '30%', r: '75%' }, defs);
-      el('stop', { offset: 0, 'stop-color': t.light }, rg);
-      el('stop', { offset: 1, 'stop-color': t.dark }, rg);
-    });
+    // 每种小料一个"球面"渐变，左上角亮、右下角暗，看起来是立体的。
+    // 用到哪种才创建哪种（店员后台可能新加了小料）
+    function ensureGradient(t) {
+      const gid = `${id}-${t.id}`;
+      let rg = defs.querySelector(`#${CSS.escape(gid)}`);
+      if (!rg) {
+        rg = el('radialGradient', { id: gid, cx: '35%', cy: '30%', r: '75%' }, defs);
+        el('stop', { offset: 0 }, rg);
+        el('stop', { offset: 1 }, rg);
+      }
+      rg.children[0].setAttribute('stop-color', t.light);
+      rg.children[1].setAttribute('stop-color', t.dark);
+    }
     // 黑糖挂壁的渐变：上面浓，往下慢慢变淡
     const syrup = el('linearGradient', { id: `${id}-syrup`, x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
     el('stop', { offset: 0, 'stop-color': '#3A1604', 'stop-opacity': 0.85 }, syrup);
@@ -205,7 +215,7 @@ const Cup = (() => {
     /* 沉底小料重新"落定"：去掉某种小料后，上面的会掉下来填补空位 */
     function settle() {
       const all = [];
-      TOPPINGS.filter(t => t.zone === 'bottom').forEach(t => (pieces[t.id] || []).forEach(p => all.push(p)));
+      Object.values(pieces).forEach(list => list.forEach(p => { if (p.zone === 'bottom') all.push(p); }));
       all.sort((a, b) => b.y - a.y);          // 先处理最低的
       const placed = [];
       all.forEach(p => {
@@ -239,16 +249,14 @@ const Cup = (() => {
     function addTopping(t) {
       const placedBottom = [];
       const placedFloat = [];
-      Object.entries(pieces).forEach(([tid, list]) => {
-        const zone = TOPPINGS.find(x => x.id === tid).zone;
-        list.forEach(p => (zone === 'bottom' ? placedBottom : placedFloat).push(p));
-      });
+      Object.values(pieces).forEach(list => list.forEach(p => (p.zone === 'bottom' ? placedBottom : placedFloat).push(p)));
+      ensureGradient(t);
       const list = [];
       const group = t.zone === 'bottom' ? bottomG : floatG;
       for (let i = 0; i < t.count; i++) {
         const pos = t.zone === 'bottom' ? dropPosition(t.r, placedBottom, rand) : floatPosition(t.r, placedFloat.concat(placedBottom), rand);
         if (!pos) continue;
-        const p = { x: pos.x, y: pos.y, r: t.r, rot: Math.round((rand() - 0.5) * 50) };
+        const p = { x: pos.x, y: pos.y, r: t.r, zone: t.zone, rot: Math.round((rand() - 0.5) * 50) };
         p.node = el('g', { transform: `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})` }, group);
         const inner = el('g', {}, p.node);
         drawPiece(inner, t, p, id);
@@ -355,12 +363,12 @@ const Cup = (() => {
       const prevTops = current ? current.tops : [];
       prevTops.filter(t => !recipe.tops.includes(t)).forEach(removeTopping);
       recipe.tops.filter(t => !prevTops.includes(t)).forEach(tid => {
-        const t = TOPPINGS.find(x => x.id === tid);
-        if (t.zone !== 'top') addTopping(t);
+        const t = menu().toppings.find(x => x.id === tid);
+        if (t && t.zone !== 'top') addTopping(t);
       });
 
       if (!current || current.tops.includes('brown') !== recipe.tops.includes('brown')) drawStripes(recipe.tops.includes('brown'));
-      if (!current || current.ice !== recipe.ice) drawIce(ICES.find(i => i.id === recipe.ice).cubes);
+      if (!current || current.ice !== recipe.ice) drawIce((menu().ices.find(i => i.id === recipe.ice) || { cubes: 0 }).cubes);
       if (!current || current.tops.includes('cheese') !== recipe.tops.includes('cheese')) drawFoam(recipe.tops.includes('cheese'));
       steam.classList.toggle('on', recipe.ice === 'hot');
       svg.classList.toggle('is-large', recipe.size === 'L');
@@ -370,5 +378,5 @@ const Cup = (() => {
     return { update, svg };
   }
 
-  return { create, mix };
+  return { create, mix, setMenu: m => { MENU = m; } };
 })();
