@@ -1,214 +1,296 @@
 /* =========================================================
-   第二部分：状态
-   页面上所有东西都由这一个对象决定。改状态，再调用 render()。
+   script.js：页面逻辑
+   一共五块：
+   1. 工具函数（价格、配方和网址互相转换）
+   2. 路由：根据网址里 # 后面的部分，决定显示哪个页面
+   3. DIY 页面
+   4. 菜单页面、首页
+   5. 转盘页面
+   6. 购物车、提示、声音开关
    ========================================================= */
-const state = { tea: 'black', milk: 'milk', sweet: 50, ice: 'normal', size: 'M', tops: [] };
-const mood = { current: 'any' };
-const weather = { kind: null, temp: null };   // kind: cold / mild / hot / rain
 
+const $ = id => document.getElementById(id);
 const byId = (arr, id) => arr.find(x => x.id === id);
 
-/* 把两个颜色按比例混合，用来算"茶 + 奶"之后的颜色 */
-function mix(hexA, hexB, t) {
-  const a = hexA.match(/\w\w/g).map(h => parseInt(h, 16));
-  const b = hexB.match(/\w\w/g).map(h => parseInt(h, 16));
-  return '#' + a.map((v, i) => Math.round(v + (b[i] - v) * t).toString(16).padStart(2, '0')).join('');
-}
+/* =========================================================
+   1. 工具函数
+   ========================================================= */
+const DEFAULT_RECIPE = { tea: 'black', milk: 'milk', sweet: 50, ice: 'normal', size: 'M', tops: [] };
 
-function calcPrice() {
-  let p = byId(TEAS, state.tea).price + byId(MILKS, state.milk).price + byId(SIZES, state.size).price;
-  state.tops.forEach(t => { p += byId(TOPPINGS, t).price; });
+function priceOf(r) {
+  let p = byId(TEAS, r.tea).price + byId(MILKS, r.milk).price + byId(SIZES, r.size).price;
+  r.tops.forEach(t => { p += byId(TOPPINGS, t).price; });
   return p;
 }
+const money = n => '$' + n.toFixed(2);
+
+function describe(r) {
+  return [
+    byId(SIZES, r.size).name, byId(TEAS, r.tea).name, byId(MILKS, r.milk).name,
+    byId(SWEETS, r.sweet).name, byId(ICES, r.ice).name,
+    ...r.tops.map(t => byId(TOPPINGS, t).name),
+  ].join('，');
+}
+
+// 配方 → 网址参数，比如 tea=taro&milk=milk&sweet=50&ice=less&size=M&tops=pearl,taroball
+function toQuery(r) {
+  const q = new URLSearchParams({ tea: r.tea, milk: r.milk, sweet: r.sweet, ice: r.ice, size: r.size });
+  if (r.tops.length) q.set('tops', r.tops.join(','));
+  return q.toString();
+}
+
+// 网址参数 → 配方。网址是别人可以随便改的，所以每一项都要检查是否合法
+function fromQuery(qs) {
+  const q = new URLSearchParams(qs);
+  const pick = (list, key, fallback, num) => {
+    const v = q.get(key);
+    if (v === null) return fallback;
+    const val = num ? Number(v) : v;
+    return list.some(x => x.id === val) ? val : fallback;
+  };
+  const tops = (q.get('tops') || '').split(',').filter(t => TOPPINGS.some(x => x.id === t));
+  return {
+    tea: pick(TEAS, 'tea', DEFAULT_RECIPE.tea),
+    milk: pick(MILKS, 'milk', DEFAULT_RECIPE.milk),
+    sweet: pick(SWEETS, 'sweet', DEFAULT_RECIPE.sweet, true),
+    ice: pick(ICES, 'ice', DEFAULT_RECIPE.ice),
+    size: pick(SIZES, 'size', DEFAULT_RECIPE.size),
+    tops: [...new Set(tops)].slice(0, 3),
+  };
+}
+
+// 两个配方是不是同一杯（用来判断 DIY 的那杯是不是刚好等于某个招牌）
+const sameRecipe = (a, b) => toQuery({ ...a, tops: [...a.tops].sort() }) === toQuery({ ...b, tops: [...b.tops].sort() });
+
+const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* =========================================================
-   第三部分：生成选项按钮
-   一个通用函数，给每组选项生成"小药丸"按钮。
-   target 是要修改的状态对象（state 或 mood），key 是字段名。
+   2. 路由
+   网址长这样：
+     #/          首页
+     #/diy       自己调（可以带配方：#/diy?tea=taro&tops=pearl）
+     #/menu      招牌菜单
+     #/wheel     今天喝什么
+   只是 # 后面变了，浏览器不会重新加载页面，所以背景音乐不会断。
    ========================================================= */
-function makeChips(containerId, items, target, key, { multi = false, max = 99, showPrice = false, dot = false } = {}) {
-  const box = document.getElementById(containerId);
+const ROUTES = {
+  home:  { view: 'view-home',  title: 'Hi Tea' },
+  diy:   { view: 'view-diy',   title: '自己调一杯 · Hi Tea' },
+  menu:  { view: 'view-menu',  title: '招牌菜单 · Hi Tea' },
+  wheel: { view: 'view-wheel', title: '今天喝什么 · Hi Tea' },
+};
+
+function parseHash() {
+  const raw = location.hash.replace(/^#\/?/, '');
+  const [path, query = ''] = raw.split('?');
+  return { name: ROUTES[path] ? path : 'home', query };
+}
+
+let firstRoute = true;
+function router() {
+  const { name, query } = parseHash();
+  Object.entries(ROUTES).forEach(([key, r]) => { $(r.view).hidden = key !== name; });
+  document.querySelectorAll('.tabs a').forEach(a => {
+    if (a.dataset.route === name) a.setAttribute('aria-current', 'page');
+    else a.removeAttribute('aria-current');
+  });
+  document.title = ROUTES[name].title;
+  document.body.dataset.route = name;
+
+  if (name === 'diy') enterDiy(query);
+  if (name === 'wheel') enterWheel();
+
+  // 换页后回到顶部，并把焦点放到标题上（用键盘和读屏软件的人才知道换页了）
+  if (!firstRoute) {
+    window.scrollTo(0, 0);
+    const h = $(ROUTES[name].view).querySelector('h1');
+    if (h) h.focus({ preventScroll: true });
+  }
+  firstRoute = false;
+}
+window.addEventListener('hashchange', router);
+
+/* =========================================================
+   3. DIY 页面
+   ========================================================= */
+let recipe = { ...DEFAULT_RECIPE, tops: [] };
+let diyCup = null;
+
+function makeChips(boxId, items, getVal, setVal, { multi = false, max = 99, showPrice = false, swatch = null } = {}) {
+  const box = $(boxId);
   box.innerHTML = '';
   items.forEach(item => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'chip';
     b.dataset.id = item.id;
-    if (dot) b.innerHTML = `<span class="dot" style="background:${item.color}"></span>`;
-    b.insertAdjacentHTML('beforeend', item.name);
-    if (showPrice && item.price) b.insertAdjacentHTML('beforeend', ` <span class="extra">+$${item.price.toFixed(2)}</span>`);
+    if (swatch) b.insertAdjacentHTML('beforeend', `<span class="dot" style="background:${swatch(item)}"></span>`);
+    b.insertAdjacentHTML('beforeend', `<span>${item.name}</span>`);
+    if (showPrice && item.price) b.insertAdjacentHTML('beforeend', `<span class="extra">+$${item.price.toFixed(2)}</span>`);
     b.addEventListener('click', () => {
       if (multi) {
-        const list = target[key];
+        const list = [...getVal()];
         const i = list.indexOf(item.id);
         if (i >= 0) list.splice(i, 1);
         else if (list.length < max) list.push(item.id);
+        else { toast(`小料最多选 ${max} 种`); return; }
+        setVal(list);
       } else {
-        target[key] = item.id;
+        setVal(item.id);
       }
-      syncChips(containerId, target, key);
-      if (target === state) render();
     });
     box.appendChild(b);
   });
-  syncChips(containerId, target, key);
 }
 
-function syncChips(containerId, target, key) {
-  document.querySelectorAll(`#${containerId} .chip`).forEach(b => {
-    const val = target[key];
+function syncChips(boxId, val) {
+  document.querySelectorAll(`#${boxId} .chip`).forEach(b => {
     const on = Array.isArray(val) ? val.includes(b.dataset.id) : String(val) === b.dataset.id;
     b.setAttribute('aria-pressed', on);
   });
 }
 
-/* =========================================================
-   第四部分：画杯子
-   杯子是一个梯形：顶部 y=70 半宽 88，底部 y=318 半宽 68。
-   halfWidth(y) 算出某个高度上杯子有多宽，保证小料不会掉到杯子外面。
-   ========================================================= */
-const SVGNS = 'http://www.w3.org/2000/svg';
-const halfWidth = y => 88 - (y - 70) * (20 / 248);
-const rand = (a, b) => a + Math.random() * (b - a);
-const rendered = {};   // 记录已经画在杯子里的小料，只给新加的播放掉落动画
-
-function placeInCup(yMin, yMax, r) {
-  const y = rand(yMin, yMax);
-  const hw = halfWidth(y) - r - 6;
-  return { x: 120 + rand(-hw, hw), y };
-}
-
-function svgEl(tag, attrs) {
-  const el = document.createElementNS(SVGNS, tag);
-  for (const k in attrs) el.setAttribute(k, attrs[k]);
-  return el;
-}
-
-function makeToppingGroup(id) {
-  const t = byId(TOPPINGS, id);
-  const g = document.createElementNS(SVGNS, 'g');
-  if (id === 'cheese') return g;  // 奶盖单独用 #foam 画
-  const n = { pearl: 22, brown: 22, coco: 12, taroball: 9, pudding: 1 }[id];
-  for (let i = 0; i < n; i++) {
-    let el;
-    if (id === 'pearl' || id === 'brown') {
-      const p = placeInCup(286, 318, 8);
-      el = svgEl('circle', { cx: p.x, cy: p.y, r: 8 });
-    } else if (id === 'taroball') {
-      const p = placeInCup(270, 314, 10);
-      el = svgEl('ellipse', { cx: p.x, cy: p.y, rx: 11, ry: 9 });
-    } else if (id === 'coco') {
-      const p = placeInCup(170, 270, 9);
-      el = svgEl('rect', { x: p.x - 7, y: p.y - 7, width: 14, height: 14, rx: 3, opacity: .85 });
-    } else {
-      el = svgEl('rect', { x: 82, y: 262, width: 70, height: 46, rx: 10 });
-    }
-    el.setAttribute('fill', t.color);
-    el.classList.add('piece', 'drop');
-    el.style.transitionDelay = (i * 0.035) + 's';  // 一颗一颗错开掉下去
-    g.appendChild(el);
+function setRecipe(patch, { sound = true } = {}) {
+  const prev = recipe;
+  recipe = { ...recipe, ...patch, tops: patch.tops ? [...patch.tops] : [...recipe.tops] };
+  if (sound) {
+    if (patch.tea && patch.tea !== prev.tea) Sound.pour();
+    if (patch.milk && patch.milk !== prev.milk) Sound.pour();
+    if (patch.ice && ICES.find(i => i.id === patch.ice).cubes > ICES.find(i => i.id === prev.ice).cubes) Sound.clink();
   }
-  return g;
+  renderDiy();
+  // 把当前配方写进网址：这样复制网址就能分享这一杯。
+  // replaceState 只改网址，不会触发 hashchange，也不会多一条浏览记录
+  history.replaceState(null, '', '#/diy?' + toQuery(recipe));
 }
 
-function drawIce() {
-  const old = document.getElementById('iceGroup');
-  if (old) old.remove();
-  const g = svgEl('g', { id: 'iceGroup' });
-  const cubes = byId(ICES, state.ice).cubes;
-  const spots = [[80, 112, -12], [130, 106, 8], [160, 130, -6], [100, 140, 14]];
-  for (let i = 0; i < cubes; i++) {
-    const [x, y, rot] = spots[i];
-    g.appendChild(svgEl('rect', {
-      x, y, width: 30, height: 30, rx: 6, fill: '#FFFFFF', opacity: .55,
-      transform: `rotate(${rot} ${x + 15} ${y + 15})`,
-    }));
-  }
-  document.getElementById('pieces').appendChild(g);
+function renderDiy() {
+  syncChips('opt-tea', recipe.tea);
+  syncChips('opt-milk', recipe.milk);
+  syncChips('opt-sweet', recipe.sweet);
+  syncChips('opt-ice', recipe.ice);
+  syncChips('opt-size', recipe.size);
+  syncChips('opt-top', recipe.tops);
+  diyCup.update(recipe);
+  $('summary').textContent = describe(recipe);
+  $('price').textContent = money(priceOf(recipe));
+  diyCup.svg.setAttribute('aria-label', '你调的饮品：' + describe(recipe));
 }
 
-function drawCup() {
-  const tea = byId(TEAS, state.tea);
-  const milk = byId(MILKS, state.milk);
-  // 茶色 + 奶白；糖越多颜色越暖一点点
-  let color = mix(tea.color, '#F7EDE2', milk.mix);
-  color = mix(color, '#C27A3A', state.sweet / 1000);
-  const liquid = document.getElementById('liquid');
-  liquid.setAttribute('fill', color);
+function enterDiy(query) {
+  if (query) recipe = fromQuery(query);
+  renderDiy();
+}
 
-  // 奶盖：有就在顶部画一层奶油色，液面相应往下
-  const hasCheese = state.tops.includes('cheese');
-  document.getElementById('foam').setAttribute('height', hasCheese ? 34 : 0);
-  liquid.setAttribute('y', hasCheese ? 108 : 96);
+function setupDiy() {
+  diyCup = Cup.create($('diyCup'), { size: 'lg', onLand: () => Sound.plop() });
+  makeChips('opt-tea', TEAS, () => recipe.tea, v => setRecipe({ tea: v }), { swatch: t => `linear-gradient(${t.top}, ${t.bottom})` });
+  makeChips('opt-milk', MILKS, () => recipe.milk, v => setRecipe({ milk: v }), { showPrice: true });
+  makeChips('opt-sweet', SWEETS, () => recipe.sweet, v => setRecipe({ sweet: v }));
+  makeChips('opt-ice', ICES, () => recipe.ice, v => setRecipe({ ice: v }));
+  makeChips('opt-size', SIZES, () => recipe.size, v => setRecipe({ size: v }), { showPrice: true });
+  makeChips('opt-top', TOPPINGS, () => recipe.tops, v => setRecipe({ tops: v }),
+    { multi: true, max: 3, showPrice: true, swatch: t => `radial-gradient(circle at 35% 30%, ${t.light}, ${t.dark})` });
 
-  // 热饮冒热气
-  document.getElementById('steam').classList.toggle('on', state.ice === 'hot');
-
-  // 小料：新加的画出来并播放掉落动画，取消的删掉
-  const piecesBox = document.getElementById('pieces');
-  TOPPINGS.forEach(t => {
-    const want = state.tops.includes(t.id);
-    if (want && !rendered[t.id]) {
-      const g = makeToppingGroup(t.id);
-      piecesBox.prepend(g);
-      rendered[t.id] = g;
-      // 等浏览器先画出"掉落前"的位置，下一帧再移除 drop，触发动画
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        g.querySelectorAll('.piece').forEach(p => p.classList.remove('drop'));
-      }));
-    } else if (!want && rendered[t.id]) {
-      rendered[t.id].remove();
-      delete rendered[t.id];
+  $('addDiyBtn').addEventListener('click', () => addToCart(recipe));
+  $('resetBtn').addEventListener('click', () => setRecipe({ ...DEFAULT_RECIPE, tops: [] }, { sound: false }));
+  $('shareBtn').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(location.href);
+      toast('链接已复制，发给朋友就能看到这一杯');
+    } catch (e) {
+      toast('复制失败，可以直接复制浏览器地址栏的网址');
     }
   });
-  drawIce();
 }
 
 /* =========================================================
-   第五部分：render() 把状态同步到整个页面
+   4. 菜单页面和首页
    ========================================================= */
-function render() {
-  [['opt-tea', 'tea'], ['opt-milk', 'milk'], ['opt-sweet', 'sweet'], ['opt-ice', 'ice'], ['opt-size', 'size'], ['opt-top', 'tops']]
-    .forEach(([c, k]) => syncChips(c, state, k));
-  drawCup();
-  document.getElementById('price').textContent = '$' + calcPrice().toFixed(2);
-  const parts = [
-    byId(TEAS, state.tea).name, byId(MILKS, state.milk).name,
-    byId(SWEETS, state.sweet).name, byId(ICES, state.ice).name,
-    ...state.tops.map(t => byId(TOPPINGS, t).name),
-  ];
-  document.getElementById('summary').textContent = parts.join('，');
+function setupMenu() {
+  const grid = $('menuGrid');
+  DRINKS.forEach((d, i) => {
+    const li = document.createElement('li');
+    li.className = 'menu-card';
+    li.innerHTML = `
+      <div class="menu-cup"></div>
+      <div class="menu-body">
+        <h2>${d.name}</h2>
+        <p class="en">${d.en}</p>
+        <p class="desc">${d.desc}</p>
+        <div class="menu-foot">
+          <span class="price-sm">${money(priceOf(d.preset))}</span>
+          <a class="link-btn" href="#/diy?${toQuery(d.preset)}">改一改</a>
+          <button class="btn btn-sm">加入购物车</button>
+        </div>
+      </div>`;
+    const cup = Cup.create(li.querySelector('.menu-cup'), { size: 'sm', seed: 101 + i });
+    cup.update(d.preset);
+    cup.svg.setAttribute('aria-label', d.name);
+    li.querySelector('button').addEventListener('click', () => addToCart(d.preset, d.name));
+    grid.appendChild(li);
+  });
 }
 
-/* 下单（演示） */
-document.getElementById('orderBtn').addEventListener('click', () => {
-  document.getElementById('orderText').textContent =
-    `${byId(SIZES, state.size).name}，${document.getElementById('summary').textContent}，共 ${document.getElementById('price').textContent}`;
-  document.getElementById('pickupNo').textContent = String(Math.floor(rand(1, 999))).padStart(3, '0');
-  document.getElementById('orderDialog').showModal();
-});
-document.getElementById('closeDialog').addEventListener('click', () => document.getElementById('orderDialog').close());
-
-/* 把某个招牌饮品的配方载入"调一杯" */
-function loadPreset(drink) {
-  Object.assign(state, { ...drink.preset, tops: [...drink.preset.tops] });
-  render();
-  document.getElementById('builder').scrollIntoView({ behavior: 'smooth' });
+function setupHome() {
+  // DIY 入口：一杯慢慢"加料"的芋泥波波
+  const hc = Cup.create($('homeCup'), { size: 'sm', seed: 7 });
+  hc.update(DRINKS[2].preset);
+  hc.svg.setAttribute('aria-hidden', 'true');
+  // 菜单入口：三杯叠在一起
+  [0, 3, 4].forEach((di, k) => {
+    const c = Cup.create($('homeMenuCups'), { size: 'sm', seed: 31 + k });
+    c.update(DRINKS[di].preset);
+    c.svg.setAttribute('aria-hidden', 'true');
+  });
+  // 转盘入口：一个小转盘
+  drawWheel($('homeWheel'), true);
 }
 
 /* =========================================================
-   第六部分：今天喝什么
-   1. 用 Open-Meteo（免费、不用 API key）拿 Kitchener 当前天气
-   2. 天气 + 心情 给每杯饮品打分，选出最高分
-   3. 转盘转到那一格
+   5. 转盘页面
    ========================================================= */
-const MOODS = [
-  { id: 'wake',  name: '要提神' },
-  { id: 'sweet', name: '想吃甜的' },
-  { id: 'fresh', name: '想清爽一点' },
-  { id: 'any',   name: '随便，你定' },
-];
+const mood = { current: 'any' };
+const weather = { kind: null, temp: null, loaded: false };
 const WEATHER_TEXT = { cold: '有点冷', mild: '不冷不热', hot: '挺热的', rain: '在下雨' };
+const SEG_COLORS = ['#9B7FC4', '#F2A7B8', '#9A5A26', '#C9B8DD', '#6E9A5B', '#F7D5DC', '#2B1D3F', '#E0823A'];
+const DARK_SEGS = ['#9A5A26', '#6E9A5B', '#2B1D3F', '#9B7FC4', '#E0823A'];
+const SEG = 360 / DRINKS.length;
+const SVGNS = 'http://www.w3.org/2000/svg';
+
+function svgEl(tag, attrs, parent) {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+
+/* 画转盘。文字沿着半径方向排；左半边的字转 180°，这样每一格的字都是正着读的 */
+function drawWheel(target, mini) {
+  const g = mini ? target : target.querySelector('#wheel-rot');
+  const cx = 200, cy = 200, r = 190;
+  DRINKS.forEach((d, i) => {
+    const a0 = (i * SEG - 90) * Math.PI / 180, a1 = ((i + 1) * SEG - 90) * Math.PI / 180;
+    svgEl('path', {
+      d: `M${cx} ${cy} L${cx + r * Math.cos(a0)} ${cy + r * Math.sin(a0)} A${r} ${r} 0 0 1 ${cx + r * Math.cos(a1)} ${cy + r * Math.sin(a1)} Z`,
+      fill: SEG_COLORS[i], stroke: '#fff', 'stroke-width': 4,
+    }, g);
+    if (mini) return;
+    const mid = i * SEG + SEG / 2;                 // 这一格中线的角度（0 = 正上方，顺时针）
+    const rad = (mid - 90) * Math.PI / 180;
+    const tx = cx + 122 * Math.cos(rad), ty = cy + 122 * Math.sin(rad);
+    const flip = mid > 180;                        // 左半边：转 180° 才是正的
+    const text = svgEl('text', {
+      x: tx, y: ty, 'text-anchor': 'middle', 'dominant-baseline': 'central',
+      'font-family': 'ZCOOL KuaiLe, sans-serif', 'font-size': 23,
+      fill: DARK_SEGS.includes(SEG_COLORS[i]) ? '#fff' : '#2B1D3F',
+      transform: `rotate(${flip ? mid + 90 : mid - 90} ${tx} ${ty})`,
+    }, g);
+    text.textContent = d.short;
+  });
+  svgEl('circle', { cx, cy, r: mini ? 34 : 30, fill: '#fff' }, g);
+  if (!mini) svgEl('circle', { cx, cy, r: 12, fill: '#2B1D3F' }, g);
+}
 
 async function loadWeather() {
   try {
@@ -222,15 +304,15 @@ async function loadWeather() {
     const raining = data.current.precipitation > 0 || (code >= 51 && code <= 82);
     weather.temp = t;
     weather.kind = raining ? 'rain' : t < 10 ? 'cold' : t >= 24 ? 'hot' : 'mild';
-    renderWeather(`Kitchener 现在 ${t}°C，${WEATHER_TEXT[weather.kind]}。不对的话可以改：`);
+    renderWeather(`Kitchener-Waterloo 现在 ${t}°C，${WEATHER_TEXT[weather.kind]}。不对的话可以改：`);
   } catch (e) {
-    // 拿不到天气时，让用户自己选，页面照样能用
     weather.kind = 'mild';
     renderWeather('暂时拿不到天气，你可以手动选：');
   }
 }
+
 function renderWeather(prefix) {
-  const el = document.getElementById('weather');
+  const el = $('weather');
   el.textContent = prefix;
   const sel = document.createElement('select');
   sel.setAttribute('aria-label', '今天的天气');
@@ -239,8 +321,12 @@ function renderWeather(prefix) {
   el.appendChild(sel);
 }
 
+function enterWheel() {
+  if (!weather.loaded) { weather.loaded = true; loadWeather(); }
+}
+
 function scoreDrink(d) {
-  let s = Math.random() * 1.5;  // 一点随机，同样条件也不会每次都一样
+  let s = Math.random() * 1.5;
   if (weather.kind === 'cold' || weather.kind === 'rain') { if (d.tags.includes('warmok')) s += 3; if (d.tags.includes('cozy')) s += 2; }
   if (weather.kind === 'hot') { if (d.tags.includes('fruity')) s += 3; if (d.tags.includes('fresh')) s += 2; }
   if (mood.current === 'wake' && d.tags.includes('caffeine')) s += 3;
@@ -261,81 +347,182 @@ function reasonFor(makeHot) {
   return w + m + (makeHot ? '已经帮你改成热的了。' : '');
 }
 
-/* 画转盘：8 格，每格 45 度 */
-const SEG_COLORS = ['#9B7FC4', '#F2A7B8', '#9A5A26', '#C9B8DD', '#6E9A5B', '#F7D5DC', '#2B1D3F', '#E0823A'];
-const DARK_SEGS = ['#9A5A26', '#6E9A5B', '#2B1D3F'];
-function drawWheel() {
-  const g = document.getElementById('wheel-rot');
-  const cx = 200, cy = 200, r = 190;
-  DRINKS.forEach((d, i) => {
-    const a0 = (i * 45 - 90) * Math.PI / 180, a1 = ((i + 1) * 45 - 90) * Math.PI / 180;
-    g.appendChild(svgEl('path', {
-      d: `M${cx} ${cy} L${cx + r * Math.cos(a0)} ${cy + r * Math.sin(a0)} A${r} ${r} 0 0 1 ${cx + r * Math.cos(a1)} ${cy + r * Math.sin(a1)} Z`,
-      fill: SEG_COLORS[i], stroke: '#fff', 'stroke-width': 3,
-    }));
-    const text = svgEl('text', {
-      x: cx, y: cy - 125, 'text-anchor': 'middle', 'font-family': 'ZCOOL KuaiLe, sans-serif', 'font-size': 22,
-      fill: DARK_SEGS.includes(SEG_COLORS[i]) ? '#fff' : '#2B1D3F',
-      transform: `rotate(${i * 45 + 22.5} ${cx} ${cy})`,
-    });
-    text.textContent = d.short;
-    g.appendChild(text);
-  });
-  g.appendChild(svgEl('circle', { cx, cy, r: 26, fill: '#fff' }));
-}
-
 let wheelAngle = 0;
 let picked = null;
-document.getElementById('spinBtn').addEventListener('click', () => {
-  // 1. 打分选饮品
+let resultCup = null;
+
+/* 转盘动画用 JavaScript 一帧一帧算角度，而不是交给 CSS，
+   这样才能知道"现在指针指到哪一格"，每过一格就"嗒"一声 */
+function spin() {
   const ranked = DRINKS.map((d, i) => ({ d, i, s: scoreDrink(d) })).sort((a, b) => b.s - a.s);
   const { d, i } = ranked[0];
   const makeHot = (weather.kind === 'cold' || weather.kind === 'rain') && d.tags.includes('warmok');
-  picked = { ...d, preset: { ...d.preset, ice: makeHot ? 'hot' : d.preset.ice } };
+  picked = { name: d.name, recipe: { ...d.preset, tops: [...d.preset.tops], ice: makeHot ? 'hot' : d.preset.ice } };
 
-  // 2. 算转盘要转多少度：让第 i 格的中心转到正上方的指针下面，再多转 5 圈
-  const target = 360 - (i * 45 + 22.5);
+  const target = 360 - (i * SEG + SEG / 2);
   const current = ((wheelAngle % 360) + 360) % 360;
-  wheelAngle += 360 * 5 + ((target - current + 360) % 360);
-  document.getElementById('wheel-rot').style.transform = `rotate(${wheelAngle}deg)`;
-
-  // 3. 转完再显示结果
-  const btn = document.getElementById('spinBtn');
+  const from = wheelAngle;
+  const to = wheelAngle + 360 * 5 + ((target - current + 360) % 360);
+  const dur = reduceMotion() ? 1 : 4200;
+  const g = $('wheel-rot');
+  const btn = $('spinBtn');
   btn.disabled = true;
-  document.getElementById('result').classList.remove('show');
-  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  setTimeout(() => {
-    document.getElementById('resultName').textContent = d.name;
-    document.getElementById('resultWhy').textContent = reasonFor(makeHot);
-    document.getElementById('result').classList.add('show');
-    btn.disabled = false;
-    btn.textContent = '再选一次';
-  }, reduce ? 50 : 4300);
-});
-document.getElementById('useResult').addEventListener('click', () => picked && loadPreset(picked));
+  $('result').hidden = true;
+
+  const start = performance.now();
+  let lastSeg = null;
+  const easeOut = x => 1 - Math.pow(1 - x, 4);
+  function frame(now) {
+    const p = Math.min(1, (now - start) / dur);
+    wheelAngle = from + (to - from) * easeOut(p);
+    g.setAttribute('transform', `rotate(${wheelAngle} 200 200)`);
+    const seg = Math.floor((((360 - wheelAngle) % 360) + 360) % 360 / SEG);
+    if (seg !== lastSeg) { if (lastSeg !== null) Sound.tick(); lastSeg = seg; }
+    if (p < 1) requestAnimationFrame(frame);
+    else showResult(d, makeHot);
+  }
+  requestAnimationFrame(frame);
+}
+
+function showResult(d, makeHot) {
+  $('resultName').textContent = d.name;
+  $('resultWhy').textContent = reasonFor(makeHot);
+  $('resultCup').innerHTML = '';
+  resultCup = Cup.create($('resultCup'), { size: 'sm', seed: 55 });
+  resultCup.update(picked.recipe);
+  resultCup.svg.setAttribute('aria-hidden', 'true');
+  $('result').hidden = false;
+  $('spinBtn').disabled = false;
+  $('spinBtn').textContent = '再选一次';
+  Sound.chime();
+}
+
+function setupWheel() {
+  drawWheel($('wheel'), false);
+  makeChips('opt-mood', MOODS, () => mood.current, v => { mood.current = v; syncChips('opt-mood', v); });
+  syncChips('opt-mood', mood.current);
+  $('spinBtn').addEventListener('click', spin);
+  $('resultAdd').addEventListener('click', () => picked && addToCart(picked.recipe, picked.name));
+  $('resultDiy').addEventListener('click', () => { if (picked) location.hash = '#/diy?' + toQuery(picked.recipe); });
+}
 
 /* =========================================================
-   第七部分：启动
+   6. 购物车、提示、声音开关
+   购物车存在 localStorage 里，刷新页面也不会丢。
    ========================================================= */
-makeChips('opt-tea', TEAS, state, 'tea', { dot: true });
-makeChips('opt-milk', MILKS, state, 'milk', { showPrice: true });
-makeChips('opt-sweet', SWEETS, state, 'sweet');
-makeChips('opt-ice', ICES, state, 'ice');
-makeChips('opt-size', SIZES, state, 'size', { showPrice: true });
-makeChips('opt-top', TOPPINGS, state, 'tops', { multi: true, max: 3, showPrice: true, dot: true });
-makeChips('opt-mood', MOODS, mood, 'current');
+let cart = [];
 
-const menu = document.getElementById('menuList');
-DRINKS.forEach(d => {
-  const li = document.createElement('li');
-  li.innerHTML = `<span class="name">${d.name}<span class="en">${d.en}</span></span>`;
-  const b = document.createElement('button');
-  b.textContent = '调这杯';
-  b.onclick = () => loadPreset(d);
-  li.appendChild(b);
-  menu.appendChild(li);
-});
+function loadCart() {
+  try {
+    const raw = JSON.parse(localStorage.getItem('hitea-cart') || '[]');
+    cart = raw.filter(it => it && it.query).map(it => ({ name: it.name, recipe: fromQuery(it.query), qty: Math.max(1, Math.min(20, it.qty | 0)) }));
+  } catch (e) { cart = []; }
+}
+function saveCart() {
+  try { localStorage.setItem('hitea-cart', JSON.stringify(cart.map(it => ({ name: it.name, query: toQuery(it.recipe), qty: it.qty })))); } catch (e) { /* 存不了就算了 */ }
+}
 
-drawWheel();
-render();
-loadWeather();
+function nameFor(r) {
+  const d = DRINKS.find(x => sameRecipe(x.preset, r));
+  return d ? d.name : '我的特调';
+}
+
+function addToCart(r, name) {
+  const item = { name: name || nameFor(r), recipe: { ...r, tops: [...r.tops] }, qty: 1 };
+  const same = cart.find(it => it.name === item.name && sameRecipe(it.recipe, item.recipe));
+  if (same) same.qty++;
+  else cart.push(item);
+  saveCart();
+  renderCart();
+  Sound.chime();
+  toast(`已加入购物车：${item.name}`);
+  const btn = $('cartBtn');
+  if (!reduceMotion()) btn.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.18)' }, { transform: 'scale(1)' }], { duration: 350 });
+}
+
+function renderCart() {
+  const count = cart.reduce((s, it) => s + it.qty, 0);
+  $('cartCount').textContent = count;
+  $('cartCount').hidden = count === 0;
+  $('cartBtn').setAttribute('aria-label', `购物车，${count} 杯`);
+  const list = $('cartList');
+  list.innerHTML = '';
+  cart.forEach((it, idx) => {
+    const li = document.createElement('li');
+    li.className = 'cart-item';
+    li.innerHTML = `
+      <div class="cart-info">
+        <strong>${it.name}</strong>
+        <span>${describe(it.recipe)}</span>
+      </div>
+      <div class="qty">
+        <button class="icon-btn" aria-label="少一杯">−</button>
+        <span>${it.qty}</span>
+        <button class="icon-btn" aria-label="多一杯">+</button>
+      </div>
+      <span class="cart-price">${money(priceOf(it.recipe) * it.qty)}</span>`;
+    const [minus, plus] = li.querySelectorAll('button');
+    minus.addEventListener('click', () => { it.qty--; if (it.qty <= 0) cart.splice(idx, 1); saveCart(); renderCart(); });
+    plus.addEventListener('click', () => { it.qty = Math.min(20, it.qty + 1); saveCart(); renderCart(); });
+    list.appendChild(li);
+  });
+  const total = cart.reduce((s, it) => s + priceOf(it.recipe) * it.qty, 0);
+  $('cartTotal').textContent = money(total);
+  $('cartEmpty').hidden = cart.length > 0;
+  $('cartFoot').hidden = cart.length === 0;
+}
+
+function setupCart() {
+  loadCart();
+  renderCart();
+  $('cartBtn').addEventListener('click', () => $('cartDialog').showModal());
+  $('cartClose').addEventListener('click', () => $('cartDialog').close());
+  $('cartToMenu').addEventListener('click', () => $('cartDialog').close());
+  // 点灰色背景也能关掉
+  $('cartDialog').addEventListener('click', e => { if (e.target === $('cartDialog')) $('cartDialog').close(); });
+  $('checkoutBtn').addEventListener('click', () => {
+    const count = cart.reduce((s, it) => s + it.qty, 0);
+    const total = cart.reduce((s, it) => s + priceOf(it.recipe) * it.qty, 0);
+    $('orderText').textContent = `一共 ${count} 杯，合计 ${money(total)}。`;
+    $('pickupNo').textContent = String(Math.floor(1 + Math.random() * 998)).padStart(3, '0');
+    cart = [];
+    saveCart();
+    renderCart();
+    $('cartDialog').close();
+    $('orderDialog').showModal();
+    Sound.chime();
+  });
+  $('orderClose').addEventListener('click', () => $('orderDialog').close());
+}
+
+let toastTimer = null;
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function setupSound() {
+  Sound.init();
+  const mb = $('musicBtn'), sb = $('sfxBtn');
+  const sync = () => {
+    mb.setAttribute('aria-pressed', Sound.musicOn);
+    sb.setAttribute('aria-pressed', Sound.sfxOn);
+  };
+  mb.addEventListener('click', () => { Sound.setMusic(!Sound.musicOn); sync(); });
+  sb.addEventListener('click', () => { Sound.setSfx(!Sound.sfxOn); sync(); });
+  sync();
+}
+
+/* =========================================================
+   启动
+   ========================================================= */
+setupSound();
+setupDiy();
+setupMenu();
+setupHome();
+setupWheel();
+setupCart();
+router();

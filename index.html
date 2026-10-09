@@ -2,8 +2,9 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Hi Tea</title>
+<meta name="description" content="Hi Tea 是一家虚构的奶茶店，演示小店网站可以做出的互动功能。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
@@ -13,102 +14,173 @@
 
 <div class="demo-ribbon">Hi Tea 是一家虚构的奶茶店，用来演示网站功能，价格仅为示例</div>
 
-<header class="top">
-  <div class="logo display">Hi Tea</div>
-  <nav><a href="#builder">调一杯</a><a href="#spin">今天喝什么</a><a href="#menu">菜单</a></nav>
+<!-- ========== 顶部导航：每个页面都一样 ========== -->
+<header class="topbar">
+  <a class="logo display" href="#/">Hi Tea</a>
+  <nav class="tabs" aria-label="主导航">
+    <a href="#/" data-route="home"><span class="tab-icon" aria-hidden="true">⌂</span>首页</a>
+    <a href="#/diy" data-route="diy"><span class="tab-icon" aria-hidden="true">✦</span>自己调</a>
+    <a href="#/menu" data-route="menu"><span class="tab-icon" aria-hidden="true">☰</span>招牌菜单</a>
+    <a href="#/wheel" data-route="wheel"><span class="tab-icon" aria-hidden="true">◎</span>今天喝什么</a>
+  </nav>
+  <div class="tools">
+    <button class="icon-btn" id="musicBtn" aria-pressed="false" title="背景音乐">
+      <span aria-hidden="true">♪</span><span class="tool-label">音乐</span>
+    </button>
+    <button class="icon-btn" id="sfxBtn" aria-pressed="true" title="音效">
+      <span aria-hidden="true">🔔</span><span class="tool-label">音效</span>
+    </button>
+    <button class="cart-btn" id="cartBtn" aria-label="购物车，0 杯">
+      <span aria-hidden="true">🛍</span><span class="tool-label">购物车</span>
+      <span class="badge" id="cartCount">0</span>
+    </button>
+  </div>
 </header>
 
 <main>
-  <!-- ========== 在线调一杯 ========== -->
-  <section class="builder" id="builder">
-    <div class="cup-stage">
-      <h1>调一杯你的</h1>
-      <p class="sub" id="summary"></p>
+  <!-- ========== 首页：三个入口 ========== -->
+  <section class="view view-home" id="view-home" aria-labelledby="home-title">
+    <div class="hero">
+      <h1 id="home-title" tabindex="-1">今天，想怎么喝？</h1>
+      <p class="hero-sub">自己动手调一杯，从招牌菜单里挑，或者让天气和心情帮你决定。</p>
+    </div>
+    <div class="entries">
+      <a class="entry entry-diy" href="#/diy">
+        <div class="entry-art" id="homeCup"></div>
+        <div class="entry-text">
+          <h2>自己调一杯</h2>
+          <p>茶底、奶、甜度、冰量、小料，全部你说了算。看着珍珠一颗颗掉进杯子里。</p>
+          <span class="entry-go">开始调 →</span>
+        </div>
+      </a>
+      <a class="entry entry-menu" href="#/menu">
+        <div class="entry-art" id="homeMenuCups"></div>
+        <div class="entry-text">
+          <h2>招牌菜单</h2>
+          <p>8 款店里的人气配方，选好就能下单。</p>
+        </div>
+      </a>
+      <a class="entry entry-wheel" href="#/wheel">
+        <div class="entry-art"><svg viewBox="0 0 400 400" class="mini-wheel" id="homeWheel" aria-hidden="true"></svg></div>
+        <div class="entry-text">
+          <h2>今天喝什么？</h2>
+          <p>看看外面的天气，说说现在的心情，转一下帮你选。</p>
+        </div>
+      </a>
+    </div>
+  </section>
 
-      <svg id="cup" viewBox="0 0 240 360" role="img" aria-label="你调的饮品预览">
-        <defs>
-          <!-- 杯子形状，同时用作液体的裁剪区域 -->
-          <clipPath id="cupClip">
-            <path d="M32 70 L208 70 L188 318 Q186 332 172 332 L68 332 Q54 332 52 318 Z"/>
-          </clipPath>
-        </defs>
-        <g class="steam" id="steam">
-          <path d="M95 40 q-8 -10 0 -20 q8 -10 0 -20"/>
-          <path d="M120 40 q-8 -10 0 -20 q8 -10 0 -20"/>
-          <path d="M145 40 q-8 -10 0 -20 q8 -10 0 -20"/>
-        </g>
-        <!-- 吸管 -->
-        <rect x="138" y="-10" width="16" height="240" rx="6" fill="#F2A7B8" transform="rotate(12 146 110)"/>
-        <g clip-path="url(#cupClip)">
-          <rect x="0" y="70" width="240" height="270" fill="#F8F4FA"/>
-          <rect id="liquid" x="0" y="96" width="240" height="250" fill="#B07A52"/>
-          <g id="pieces"></g>
-          <rect id="foam" x="0" y="76" width="240" height="0" fill="#FFF3D6"/>
-        </g>
-        <!-- 杯子外框和杯盖 -->
-        <path d="M32 70 L208 70 L188 318 Q186 332 172 332 L68 332 Q54 332 52 318 Z" fill="none" stroke="#2B1D3F" stroke-width="4" stroke-linejoin="round"/>
-        <rect x="24" y="60" width="192" height="14" rx="7" fill="#2B1D3F"/>
-      </svg>
-
-      <div class="price-bar">
-        <span class="price" id="price">$5.50</span>
-        <button class="btn" id="orderBtn">下单，到店自取</button>
+  <!-- ========== DIY：自己调一杯 ========== -->
+  <section class="view view-diy" id="view-diy" aria-labelledby="diy-title" hidden>
+    <div class="view-head">
+      <a class="back" href="#/">← 首页</a>
+      <h1 id="diy-title" tabindex="-1">自己调一杯</h1>
+    </div>
+    <div class="builder">
+      <div class="cup-stage">
+        <div class="cup-box" id="diyCup"></div>
+        <div class="stage-info">
+          <p class="summary" id="summary" aria-live="polite"></p>
+          <div class="price-row">
+            <span class="price" id="price">$5.50</span>
+            <button class="btn" id="addDiyBtn">加入购物车</button>
+          </div>
+          <div class="stage-links">
+            <button class="link-btn" id="shareBtn">复制这杯的链接</button>
+            <button class="link-btn" id="resetBtn">重新调</button>
+          </div>
+        </div>
       </div>
-    </div>
 
-    <div class="options">
-      <div class="opt-group"><h3>茶底</h3><div class="chips" id="opt-tea"></div></div>
-      <div class="opt-group"><h3>奶</h3><div class="chips" id="opt-milk"></div></div>
-      <div class="opt-group"><h3>甜度</h3><div class="chips" id="opt-sweet"></div></div>
-      <div class="opt-group"><h3>冰量</h3><div class="chips" id="opt-ice"></div></div>
-      <div class="opt-group"><h3>杯型</h3><div class="chips" id="opt-size"></div></div>
-      <div class="opt-group"><h3>小料 <small>最多选 3 种</small></h3><div class="chips" id="opt-top"></div></div>
+      <ol class="steps">
+        <li class="step"><h3>选茶底</h3><div class="chips" id="opt-tea"></div></li>
+        <li class="step"><h3>加奶</h3><div class="chips" id="opt-milk"></div></li>
+        <li class="step"><h3>甜度</h3><div class="chips" id="opt-sweet"></div></li>
+        <li class="step"><h3>冰量</h3><div class="chips" id="opt-ice"></div></li>
+        <li class="step"><h3>杯型</h3><div class="chips" id="opt-size"></div></li>
+        <li class="step"><h3>小料 <small>最多 3 种</small></h3><div class="chips" id="opt-top"></div></li>
+      </ol>
     </div>
+  </section>
+
+  <!-- ========== 招牌菜单 ========== -->
+  <section class="view view-menu" id="view-menu" aria-labelledby="menu-title" hidden>
+    <div class="view-head">
+      <a class="back" href="#/">← 首页</a>
+      <h1 id="menu-title" tabindex="-1">招牌菜单</h1>
+      <p class="view-sub">每一杯都可以点"改一改"，换成你喜欢的甜度和冰量。</p>
+    </div>
+    <ul class="menu-grid" id="menuGrid"></ul>
   </section>
 
   <!-- ========== 今天喝什么 ========== -->
-  <section class="spin-section" id="spin">
-    <div>
-      <h2>今天喝什么？</h2>
-      <p class="weather" id="weather">正在看 Kitchener 今天的天气…</p>
-      <div class="opt-group">
+  <section class="view view-wheel" id="view-wheel" aria-labelledby="wheel-title" hidden>
+    <div class="view-head">
+      <a class="back" href="#/">← 首页</a>
+      <h1 id="wheel-title" tabindex="-1">今天喝什么？</h1>
+    </div>
+    <div class="spin-layout">
+      <div class="spin-controls">
+        <p class="weather" id="weather">正在看 Kitchener-Waterloo 今天的天气…</p>
         <h3>现在的心情</h3>
         <div class="chips" id="opt-mood"></div>
+        <button class="btn btn-big" id="spinBtn">帮我选一杯</button>
+        <div class="result" id="result" hidden>
+          <div class="result-cup" id="resultCup"></div>
+          <div class="result-text" aria-live="polite">
+            <strong id="resultName"></strong>
+            <p id="resultWhy"></p>
+            <div class="result-actions">
+              <button class="btn" id="resultAdd">加入购物车</button>
+              <button class="btn ghost" id="resultDiy">改一改</button>
+            </div>
+          </div>
+        </div>
       </div>
-      <button class="btn" id="spinBtn">帮我选一杯</button>
-      <div class="result" id="result" aria-live="polite">
-        <strong id="resultName"></strong>
-        <p id="resultWhy"></p>
-        <button class="btn ghost" id="useResult">就调这杯</button>
+      <div class="wheel-wrap">
+        <div class="pointer" aria-hidden="true"></div>
+        <svg id="wheel" viewBox="0 0 400 400" aria-hidden="true"><g id="wheel-rot"></g></svg>
       </div>
     </div>
-    <div class="wheel-wrap">
-      <div class="pointer" aria-hidden="true"></div>
-      <svg id="wheel" viewBox="0 0 400 400" aria-hidden="true"><g id="wheel-rot"></g></svg>
-    </div>
-  </section>
-
-  <!-- ========== 菜单 ========== -->
-  <section class="menu" id="menu">
-    <h2>招牌菜单</h2>
-    <ul class="menu-list" id="menuList"></ul>
   </section>
 </main>
 
-<footer>
-  Hi Tea 是虚构品牌，仅用于演示<br>
-  网站设计与开发：Wenbo Zhi
+<footer class="site-foot">
+  Hi Tea 是虚构品牌，仅用于演示 · 网站设计与开发：Wenbo Zhi
 </footer>
 
-<dialog id="orderDialog">
-  <h2>下单成功</h2>
+<!-- ========== 购物车 ========== -->
+<dialog class="drawer" id="cartDialog" aria-labelledby="cart-title">
+  <div class="drawer-head">
+    <h2 id="cart-title">购物车</h2>
+    <button class="icon-btn close" id="cartClose" aria-label="关闭购物车">✕</button>
+  </div>
+  <ul class="cart-list" id="cartList"></ul>
+  <div class="cart-empty" id="cartEmpty">
+    <p>购物车还是空的。</p>
+    <a class="btn ghost" href="#/menu" id="cartToMenu">去看看招牌菜单</a>
+  </div>
+  <div class="cart-foot" id="cartFoot">
+    <div class="cart-total"><span>合计</span><span id="cartTotal">$0.00</span></div>
+    <button class="btn btn-big" id="checkoutBtn">下单，到店自取</button>
+  </div>
+</dialog>
+
+<!-- ========== 下单成功 ========== -->
+<dialog class="order-dialog" id="orderDialog" aria-labelledby="order-title">
+  <h2 id="order-title">下单成功</h2>
   <p id="orderText"></p>
   <p>你的取餐号</p>
   <div class="pickup" id="pickupNo">042</div>
   <p class="note">这是演示，不会真的下单。正式版可以接 Square 或 Stripe 收款，订单直接发到店里的平板。</p>
-  <button class="btn" id="closeDialog">知道了</button>
+  <button class="btn" id="orderClose">知道了</button>
 </dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
 <script src="data.js"></script>
+<script src="sound.js"></script>
+<script src="cup.js"></script>
 <script src="script.js"></script>
 </body>
 </html>
