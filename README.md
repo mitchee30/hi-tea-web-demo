@@ -16,12 +16,22 @@ A full-stack online ordering system for small bubble tea shops: an interactive c
 - **Chinese / English** switch for every screen, remembered per device
 - Sold-out items update instantly when staff change them
 - Lo-fi background music and sound effects, synthesised live with the Web Audio API
+- **Stamp card by phone number**: every drink picked up earns a stamp; 10 stamps = a free drink (the cheapest one in the order). No account needed
+- **Wait time and queue position**: checkout shows roughly how long it will take; the order page shows how many drinks are ahead of you
+- **Store info on the home page**: address, map, hours, phone, and a live "Open now / Closed" badge
+- **New and limited-time badges** and **promo codes** (fixed amount or percentage, minimum spend, usage limit, expiry date)
+- **Order again** with one tap from the order page or the cart's recent orders
+- **Installable as an app (PWA)**: add it to the home screen on Android or iPhone; it still opens without a connection
+- **Caffeine and allergen labels** on every drink, plus a dairy-free oat milk hint
 
 **For staff** (`/admin.html`, PIN login)
 - Real-time order board: New → Making → Waiting for pickup, with a chime and flashing card for new orders
 - One tap moves an order forward and notifies the customer's phone
 - **Menu management without touching code**: names (中/EN), prices, sold out, colours, signature drink recipes, add or remove drinks, teas and toppings
 - Generate and print table QR codes
+- **Promos & stamps tab**: create, edit, pause or delete promo codes and see how many times each was used; look up a customer's stamp card and add stamps by hand for in-store purchases
+- The menu editor also sets each drink's badge (New / Limited / Popular), each tea's caffeine level, and allergens for milks and toppings
+- Order cards show the promo code, discount, free-drink redemption and stamps
 
 ## Tech
 
@@ -41,6 +51,8 @@ Things worth pointing out:
 - Times are computed in the shop's time zone (`America/Toronto`), not the server's.
 - Rate limiting on ordering and login; constant-time PIN comparison.
 - If Stripe is down, the order still goes through as pay-at-counter instead of being lost.
+- Discounts are also computed on the server. Stamps for a free drink are taken when the order is placed and given back if it's cancelled or the Stripe payment expires; earned stamps are only added once the drink is picked up.
+- The service worker never caches `/api`, the WebSocket or the staff dashboard, so orders and menus are always live.
 
 ```
 public/                 front end (also deployed to GitHub Pages as a demo)
@@ -50,6 +62,7 @@ public/                 front end (also deployed to GitHub Pages as a demo)
   pricing.js            price rules shared by browser and server
   api.js                talks to the server; falls back to demo mode
   i18n.js               Chinese / English text
+  manifest.webmanifest  sw.js  icons/   PWA (install to home screen)
   cup.js  sound.js      animated cup, music and sound effects
   script.js  admin.js   page logic
 server/
@@ -97,9 +110,13 @@ Note: on Render's free plan the service sleeps after 15 minutes (the first visit
 Edit `public/shop.config.json`:
 - `shop`: name, tagline, address, coordinates (for weather), time zone, tax rate
 - `theme`: colours
-- `hours`: opening hours, prep time, slot length; set `demoAlwaysOpen` to `false`
+- `hours`: opening hours, prep time, minutes per drink (for wait estimates), slot length; set `demoAlwaysOpen` to `false`
+- `shop.phone`, `shop.allergenNote`, and `shop.fictional` (set to `false` for a real shop so Google can show its address and hours)
+- `loyalty`: turn the stamp card on or off, and set how many stamps a free drink needs
+- `coupons`: the starting promo codes (after the first start, edit them in the dashboard)
 - `features`: turn the wheel, music or table ordering on or off
-- `menu`: the starting menu (after the first start, the menu is edited in the dashboard)
+- `menu`: the starting menu, including `badge`, `caffeine` and `allergens` (after the first start, the menu is edited in the dashboard)
+- `icons/` and `manifest.webmanifest`: the app icon and name
 
 Delete `data/hitea.db` to reload the menu from the config.
 
@@ -127,12 +144,22 @@ Wenbo Zhi · University of Waterloo, Electrical Engineering · [github.com/mitch
 - 所有页面都能**中英文切换**，每台设备会记住自己的选择
 - 店员一改售罄，顾客页面马上更新
 - lo-fi 背景音乐和音效，用 Web Audio API 现场合成
+- **手机号集点卡**：每取走一杯攒 1 个印章，集满 10 个免费换一杯（换订单里最便宜的那杯），不用注册
+- **预计等待时间和排队位置**：结账时告诉你大约多久能好，订单页显示前面还有几杯
+- **首页店铺信息**：地址、地图、营业时间、电话，以及实时的"营业中 / 已打烊"
+- **新品、限定标签**和**优惠码**（减金额或打折，可以设最低消费、次数上限和到期日）
+- **再来一单**：在订单页或购物车的"最近的订单"里一键再点
+- **可以安装成 App（PWA）**：安卓和 iPhone 都能添加到主屏幕，没网时也能打开
+- 每杯都有**咖啡因和过敏原标签**，含奶的会提示可以换燕麦奶
 
 **店员后台**（`/admin.html`，用 PIN 登录）
 - 实时订单看板：已下单 → 制作中 → 等待取餐；新订单会响铃，卡片会闪烁
 - 点一下就能推进订单状态，顾客的手机会同步更新
 - **不用改代码就能管理菜单**：中英文名字、价格、售罄、颜色、招牌饮品配方，还能增删饮品、茶底和小料
 - 生成并打印桌号二维码
+- **"优惠与集点"页**：新增、修改、暂停、删除优惠码，看每个码用了几次；查顾客的集点卡，店里现场买的也能手动加印章
+- 菜单管理里还能设饮品标签（新品 / 限定 / 人气）、茶底的咖啡因、奶和小料的过敏原
+- 订单卡片上会显示用了哪个优惠码、减了多少、有没有用集点兑换、能攒几个印章
 
 ## 技术
 
@@ -152,6 +179,8 @@ Wenbo Zhi · University of Waterloo, Electrical Engineering · [github.com/mitch
 - 营业时间和取餐时间按店铺所在时区（`America/Toronto`）计算，而不是服务器的时区。
 - 下单和登录接口有限流；PIN 比较用的是常数时间比较。
 - Stripe 出问题时，订单会自动改成到店付款，不会丢单。
+- 优惠金额也由服务器计算。兑换免费饮品的印章在下单时扣掉，订单取消或 Stripe 付款过期会退回；攒的印章要等顾客取走饮品才加上。
+- Service Worker 永远不缓存 `/api`、WebSocket 和店员后台，订单和菜单始终是实时的。
 
 ## 本地运行
 
@@ -188,9 +217,13 @@ npm start
 修改 `public/shop.config.json`：
 - `shop`：店名、标语、地址、坐标（用来查天气）、时区、税率
 - `theme`：配色
-- `hours`：营业时间、准备时间、取餐时间的间隔；记得把 `demoAlwaysOpen` 改成 `false`
+- `hours`：营业时间、准备时间、每杯制作分钟数（用来估算等待时间）、取餐时间的间隔；记得把 `demoAlwaysOpen` 改成 `false`
+- `shop.phone`、`shop.allergenNote`，以及 `shop.fictional`（真实的店改成 `false`，Google 搜索就能显示地址和营业时间）
+- `loyalty`：开关集点卡、设置集满几个印章换一杯
+- `coupons`：初始优惠码（第一次启动后，在店员后台修改）
 - `features`：开关转盘、背景音乐和扫码点单功能
-- `menu`：初始菜单（第一次启动后，菜单就在店员后台修改）
+- `menu`：初始菜单，包括 `badge`、`caffeine`、`allergens`（第一次启动后，菜单就在店员后台修改）
+- `icons/` 和 `manifest.webmanifest`：App 图标和名字
 
 删除 `data/hitea.db`，就能重新从配置文件加载菜单。
 

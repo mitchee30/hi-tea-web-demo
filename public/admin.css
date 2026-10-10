@@ -102,6 +102,29 @@ body.admin { padding-bottom: 0; }
 .save-bar #saveState { margin-right: auto; color: var(--ink-soft); }
 .save-bar.dirty #saveState { color: var(--accent); font-weight: 700; }
 
+.save-bar #cpState { margin-right: auto; color: var(--ink-soft); }
+.save-bar.dirty #cpState { color: var(--accent); font-weight: 700; }
+.save-bar.inline { position: static; background: none; }
+
+/* ---------- 订单卡片上的优惠标签 ---------- */
+.o-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.o-tag { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--bg); color: var(--ink-soft); }
+.o-tag.reward { background: #FFE8CF; color: #8A4F17; }
+.o-tag.coupon { background: #E6F2DF; color: #3C6A2C; }
+.o-tag.stamp { background: var(--soft-1); color: var(--ink); }
+
+/* ---------- 优惠码与集点卡 ---------- */
+.promo-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); gap: 20px; align-items: start; }
+.cp-uses { font-size: 13px; color: var(--ink-soft); margin-left: auto; padding-bottom: 10px; }
+.ed-line.algs { gap: 4px 14px; align-items: center; }
+.loy-admin .rw-form { display: flex; gap: 8px; margin: 12px 0; }
+.loy-admin .rw-form .field { flex: 1; margin: 0; }
+.loy-phone { font-weight: 700; margin: 0 0 10px; }
+.loy-admin .stamps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; max-width: 240px; }
+.loy-admin .stamp { aspect-ratio: 1; border-radius: 50%; border: 2px dashed var(--line); display: flex; align-items: center; justify-content: center; color: #fff; }
+.loy-admin .stamp.on { border: 0; background: radial-gradient(circle at 35% 30%, #C2742F, var(--accent-dark)); }
+.loy-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
 /* ---------- 二维码 ---------- */
 .qr-controls { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
 .qr-controls .lbl { margin: 0 0 10px; }
@@ -117,7 +140,8 @@ body.admin { padding-bottom: 0; }
   .board { grid-template-columns: 1fr; }
   .col { min-height: 0; }
   .a-top { gap: 10px; padding: 10px 12px; }
-  .a-tabs { order: 3; flex-basis: 100%; }
+  .a-tabs { order: 3; flex-basis: 100%; overflow-x: auto; }
+  .promo-grid { grid-template-columns: 1fr; }
 }
 
 /* 打印：只打印二维码 */

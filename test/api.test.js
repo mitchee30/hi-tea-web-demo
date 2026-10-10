@@ -3,6 +3,8 @@
    每次测试用一个临时数据库，不会影响你本地的订单。
    ========================================================= */
 const { test, before, after } = require('node:test');
+// 测试会下很多单，把限流放宽
+process.env.RATE_LIMIT_OFF = '1';
 const assert = require('node:assert');
 const os = require('os');
 const path = require('path');
@@ -170,4 +172,84 @@ test('qr code and online payment fallback', async () => {
   const o = await api('GET', `/api/orders/${r.body.id}?token=${r.body.token}`);
   assert.equal(o.body.payment, 'store');
   assert.equal(o.body.status, 'new');
+});
+
+test('coupon codes: check, apply, reject', async () => {
+  const lines = [{ drinkId: 'classic', recipe: classic, qty: 2 }];
+  const chk = await api('POST', '/api/coupons/check', { code: 'student10', lines });
+  assert.equal(chk.status, 200, JSON.stringify(chk.body));
+  assert.equal(chk.body.off, 125);                     // 12.50 的 10%
+  assert.equal((await api('POST', '/api/coupons/check', { code: 'NOPE', lines })).status, 400);
+  const small = await api('POST', '/api/coupons/check', { code: 'WELCOME1', lines: [{ recipe: { ...classic, tops: [] }, qty: 0 }] });
+  assert.equal(small.status, 400);
+
+  const r = await api('POST', '/api/orders', orderBody({ lines, couponCode: 'STUDENT10' }));
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  const o = (await api('GET', `/api/orders/${r.body.id}?token=${r.body.token}`)).body;
+  assert.equal(o.subtotal, 1250);
+  assert.equal(o.discount, 125);
+  assert.equal(o.tax, Math.round(1125 * 0.13));
+  assert.equal(o.total, 1125 + Math.round(1125 * 0.13));
+  assert.equal(o.coupon, 'STUDENT10');
+  assert.equal((await api('POST', '/api/orders', orderBody({ couponCode: 'FAKE' }))).body.error, 'coupon_invalid');
+});
+
+test('loyalty: earn on pickup, redeem a free drink, refund on cancel', async () => {
+  const token = (await api('POST', '/api/admin/login', { pin: '2468' })).body.token;
+  const phone = '+1 (519) 555-7788';
+  assert.equal((await api('GET', '/api/loyalty?phone=' + encodeURIComponent(phone))).body.stamps, 0);
+
+  // 店里现场买的，店员手动加 9 个
+  assert.equal((await api('POST', '/api/admin/loyalty', { phone, delta: 9 }, token)).body.stamps, 9);
+  // 不够 10 个，不能兑换
+  const no = await api('POST', '/api/orders', orderBody({ phone, useReward: true }));
+  assert.equal(no.body.error, 'not_enough_stamps');
+
+  // 下单 3 杯，取走后 +3 = 12
+  const r = await api('POST', '/api/orders', orderBody({ phone, lines: [{ drinkId: 'classic', recipe: classic, qty: 3 }] }));
+  const o = (await api('GET', `/api/orders/${r.body.id}?token=${r.body.token}`)).body;
+  assert.equal(o.stamps, 3);
+  for (const s of ['making', 'ready', 'done']) await api('POST', `/api/admin/orders/${r.body.id}/status`, { status: s }, token);
+  assert.equal((await api('GET', '/api/loyalty?phone=5195557788')).body.stamps, 12);
+
+  // 兑换：最便宜的一杯免费，扣 10 个
+  const red = await api('POST', '/api/orders', orderBody({ phone, useReward: true }));
+  assert.equal(red.status, 201, JSON.stringify(red.body));
+  const ro = (await api('GET', `/api/orders/${red.body.id}?token=${red.body.token}`)).body;
+  assert.equal(ro.rewardUsed, true);
+  assert.equal(ro.discount, 625);                      // 最便宜的是 classic 6.25
+  assert.equal(ro.stamps, 2);                          // 3 杯里免费的那杯不算
+  assert.equal((await api('GET', '/api/loyalty?phone=5195557788')).body.stamps, 2);
+
+  // 取消：印章退回
+  await api('POST', `/api/admin/orders/${red.body.id}/status`, { status: 'cancelled' }, token);
+  assert.equal((await api('GET', '/api/loyalty?phone=5195557788')).body.stamps, 12);
+});
+
+test('wait time estimate and queue position', async () => {
+  const w = await api('GET', '/api/wait?drinks=2');
+  assert.ok(w.body.minutes >= 10);
+  const a = await api('POST', '/api/orders', orderBody());
+  const b = await api('POST', '/api/orders', orderBody());
+  const ob = (await api('GET', `/api/orders/${b.body.id}?token=${b.body.token}`)).body;
+  assert.ok(ob.ahead >= 3, 'order b has order a ahead of it');
+  assert.ok(ob.etaMinutes > 0);
+  const w2 = await api('GET', '/api/wait?drinks=2');
+  assert.ok(w2.body.queueDrinks >= w.body.queueDrinks + 6);
+});
+
+test('admin coupons: validate and save', async () => {
+  const token = (await api('POST', '/api/admin/login', { pin: '2468' })).body.token;
+  const list = (await api('GET', '/api/admin/coupons', null, token)).body;
+  assert.ok(list.length >= 2);
+  list.push({ code: 'fall25', type: 'percent', value: 25, minSubtotal: 10, active: true, maxUses: 1, expires: '2099-12-31', label: { zh: '秋季', en: 'Fall' } });
+  const saved = await api('PUT', '/api/admin/coupons', list, token);
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  assert.ok(saved.body.some(c => c.code === 'FALL25'));
+  // 只能用 1 次
+  const big = [{ drinkId: 'classic', recipe: classic, qty: 2 }];
+  assert.equal((await api('POST', '/api/orders', orderBody({ lines: big, couponCode: 'FALL25' }))).status, 201);
+  assert.equal((await api('POST', '/api/orders', orderBody({ lines: big, couponCode: 'FALL25' }))).body.error, 'coupon_used_up');
+  const bad = [...list, { code: 'x', type: 'percent', value: 500 }];
+  assert.equal((await api('PUT', '/api/admin/coupons', bad, token)).status, 400);
 });

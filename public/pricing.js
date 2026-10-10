@@ -49,14 +49,51 @@
     return c;
   }
 
-  /* 整张订单：小计、税、合计 */
-  function totals(lines, menu, taxRate) {
+  /* 整张订单：小计、优惠、税、合计（税按优惠后的金额算） */
+  function totals(lines, menu, taxRate, discount = 0) {
     const subtotal = lines.reduce((s, l) => s + recipeCents(l.recipe, menu, l.drinkId) * l.qty, 0);
-    const tax = Math.round(subtotal * (taxRate || 0));
-    return { subtotal, tax, total: subtotal + tax };
+    const d = Math.max(0, Math.min(discount, subtotal));
+    const tax = Math.round((subtotal - d) * (taxRate || 0));
+    return { subtotal, discount: d, tax, total: subtotal - d + tax };
+  }
+
+  /* 优惠：集点卡免费一杯 + 优惠码
+     - 集点兑换：订单里最便宜的那一杯免费
+     - 优惠码：percent 打折（比如 10 = 9 折），amount 直接减（比如 1 = 减 $1）
+     返回 { reward, coupon, error } ，金额都是"分"；error 是优惠码不能用的原因 */
+  function discounts({ lines, menu, useReward = false, coupon = null, now = new Date() }) {
+    const subtotal = lines.reduce((s, l) => s + recipeCents(l.recipe, menu, l.drinkId) * l.qty, 0);
+    const units = lines.map(l => recipeCents(l.recipe, menu, l.drinkId));
+    const reward = useReward && units.length ? Math.min(...units) : 0;
+    let off = 0, error = null;
+    if (coupon) {
+      if (!coupon.active) error = 'coupon_inactive';
+      else if (coupon.expires && new Date(coupon.expires + 'T23:59:59') < now) error = 'coupon_expired';
+      else if (coupon.maxUses != null && (coupon.uses || 0) >= coupon.maxUses) error = 'coupon_used_up';
+      else if (subtotal < cents(coupon.minSubtotal || 0)) error = 'coupon_min';
+      else {
+        const rest = subtotal - reward;
+        off = coupon.type === 'percent'
+          ? Math.round(rest * Math.max(0, Math.min(100, coupon.value)) / 100)
+          : Math.min(cents(coupon.value), rest);
+      }
+    }
+    return { reward, coupon: off, error, subtotal };
+  }
+
+  /* 咖啡因和过敏原：从茶底、奶、小料汇总出来 */
+  const CAFFEINE_RANK = { none: 0, low: 1, mid: 2, high: 3 };
+  function traits(r, menu) {
+    const tea = find(menu.teas, r.tea) || {};
+    const milk = find(menu.milks, r.milk) || {};
+    const allergens = new Set(milk.allergens || []);
+    (r.tops || []).forEach(t => ((find(menu.toppings, t) || {}).allergens || []).forEach(a => allergens.add(a)));
+    // 有没有不含乳制品的奶可以换（给"可以做成无乳糖"提示用）
+    const dairyFreeMilk = (menu.milks || []).some(m => m.available !== false && m.id !== 'none' && !(m.allergens || []).includes('dairy'));
+    return { caffeine: tea.caffeine || 'none', allergens: [...allergens].sort(), dairyFreeMilk };
   }
 
   const format = (c, currency = 'CAD') => '$' + (c / 100).toFixed(2) + (currency === 'CAD' ? '' : ' ' + currency);
 
-  return { checkRecipe, sameRecipe, recipeCents, totals, format, cents };
+  return { checkRecipe, sameRecipe, recipeCents, totals, discounts, traits, CAFFEINE_RANK, format, cents };
 });

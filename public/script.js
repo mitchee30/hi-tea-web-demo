@@ -96,6 +96,7 @@ function svgEl(tag, attrs, parent) {
    ========================================================= */
 const ROUTES = {
   home: 'view-home', diy: 'view-diy', menu: 'view-menu', wheel: 'view-wheel', checkout: 'view-checkout', order: 'view-order',
+  rewards: 'view-rewards',
 };
 let currentRoute = null;
 let firstRoute = true;
@@ -124,6 +125,7 @@ function router() {
   if (name === 'wheel') enterWheel();
   if (name === 'checkout') enterCheckout();
   if (name === 'order') enterOrder(query);
+  if (name === 'rewards') enterRewards();
   if ($('cartDialog').open) $('cartDialog').close();
 
   // 换页后回到顶部，并把焦点放到标题上（用键盘和读屏软件的人才知道换页了）
@@ -137,7 +139,7 @@ function router() {
 window.addEventListener('hashchange', router);
 
 function updateTitle() {
-  const names = { home: '', diy: t('diy.title'), menu: t('menu.title'), wheel: t('wheel.title'), checkout: t('co.title'), order: t('ord.title') };
+  const names = { home: '', diy: t('diy.title'), menu: t('menu.title'), wheel: t('wheel.title'), checkout: t('co.title'), order: t('ord.title'), rewards: t('loy.title') };
   const n = names[currentRoute];
   document.title = n ? `${n} · ${CFG.shop.name}` : CFG.shop.name;
 }
@@ -206,6 +208,7 @@ function renderDiy() {
   });
   diyCup.update(recipe);
   $('summary').textContent = describe(recipe);
+  $('diyTraits').innerHTML = traitChips(recipe);
   $('price').textContent = money(unitCents(recipe, matchDrink(recipe)?.id));
   const ok = recipeOk(recipe);
   $('addDiyBtn').disabled = !ok;
@@ -241,11 +244,12 @@ function buildMenuGrid() {
     const li = document.createElement('li');
     li.className = 'menu-card' + (ok ? '' : ' is-soldout');
     li.innerHTML = `
-      <div class="menu-cup"></div>
+      <div class="menu-cup">${d.badge ? `<span class="badge-tag ${d.badge}">${t('badge.' + d.badge)}</span>` : ''}</div>
       <div class="menu-body">
         <h2>${esc(L(d.name))}</h2>
         <p class="en">${esc(I18N.lang === 'zh' ? d.name.en : d.name.zh)}</p>
         <p class="desc">${esc(L(d.desc))}</p>
+        <p class="traits">${traitChips(d.preset)}</p>
         <div class="menu-foot">
           <span class="price-sm">${money(unitCents(d.preset, d.id))}</span>
           ${ok ? `<a class="link-btn" href="#/diy?${toQuery(d.preset)}">${t('menu.custom')}</a>` : ''}
@@ -258,6 +262,100 @@ function buildMenuGrid() {
     li.querySelector('button').addEventListener('click', () => addToCart(d.preset, d.id));
     grid.appendChild(li);
   });
+  $('allergenNote').textContent = L(CFG.shop.allergenNote) || '';
+}
+
+/* 咖啡因、过敏原小标签 */
+function traitChips(r) {
+  const tr = Pricing.traits(r, MENU);
+  const out = [`<span class="trait caf-${tr.caffeine}">${t('caf.' + tr.caffeine)}</span>`];
+  tr.allergens.forEach(a => out.push(`<span class="trait alg">${t('alg.' + a)}</span>`));
+  const milkDairy = (byId(MENU.milks, r.milk)?.allergens || []).includes('dairy');
+  if (milkDairy && tr.dairyFreeMilk) out.push(`<span class="trait swap">${t('alg.swap')}</span>`);
+  return out.join('');
+}
+
+/* 首页：本季新品与限定 */
+function buildFeatured() {
+  const list = activeDrinks().filter(d => d.badge === 'new' || d.badge === 'limited');
+  $('featured').hidden = list.length === 0;
+  $('featuredList').innerHTML = list.map(d => `
+    <a class="feat-chip" href="#/diy?${toQuery(d.preset)}">
+      <span class="badge-tag ${d.badge}">${t('badge.' + d.badge)}</span>
+      <strong>${esc(L(d.name))}</strong><span>${money(unitCents(d.preset, d.id))}</span>
+    </a>`).join('');
+}
+
+/* =========================================================
+   店铺信息：地址、营业时间、营业状态、地图
+   ========================================================= */
+function shopNowMinutes() {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: CFG.shop.timezone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    .formatToParts(new Date()).map(x => [x.type, x.value]));
+  return Number(p.hour) * 60 + Number(p.minute);
+}
+const hhmm = v => { const [h, m] = v.split(':').map(Number); return h * 60 + m; };
+
+function renderStore() {
+  const { open, close } = CFG.hours;
+  const now = shopNowMinutes();
+  const isOpen = now >= hhmm(open) && now < hhmm(close);
+  const pill = $('openPill');
+  pill.textContent = isOpen ? t('store.open', { close }) : (CFG.hours.demoAlwaysOpen ? t('store.closedDemo') : t('store.closed', { open }));
+  pill.dataset.open = isOpen;
+  $('storeAddr').textContent = CFG.shop.address || '';
+  $('storeMapLink').href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(CFG.shop.address || CFG.shop.name);
+  $('storeHours').textContent = t('store.daily', { open, close });
+  $('storePhone').textContent = CFG.shop.phone || '';
+  $('storePhone').href = 'tel:' + String(CFG.shop.phone || '').replace(/[^\d+]/g, '');
+  // OpenStreetMap 的嵌入地图：不需要 API key
+  const { lat, lon } = CFG.shop;
+  const src = `https://www.openstreetmap.org/export/embed.html?bbox=${lon - 0.006},${lat - 0.003},${lon + 0.006},${lat + 0.003}&layer=mapnik&marker=${lat},${lon}`;
+  if ($('storeMap').getAttribute('src') !== src) $('storeMap').setAttribute('src', src);
+
+  // 集点卡入口
+  $('loyPromo').hidden = !CFG.loyalty.enabled;
+  $('loyPromoText').textContent = t('loy.sub', { n: CFG.loyalty.stampsNeeded });
+
+  // 真实店铺才加结构化数据，方便 Google 搜索显示营业时间和地址（虚构的店不加）
+  if (!CFG.shop.fictional && !document.getElementById('ldjson')) {
+    const ld = document.createElement('script');
+    ld.type = 'application/ld+json';
+    ld.id = 'ldjson';
+    ld.textContent = JSON.stringify({
+      '@context': 'https://schema.org', '@type': 'CafeOrCoffeeShop', name: CFG.shop.name, telephone: CFG.shop.phone,
+      address: CFG.shop.address, geo: { '@type': 'GeoCoordinates', latitude: lat, longitude: lon },
+      openingHours: `Mo-Su ${open}-${close}`, servesCuisine: 'Bubble tea', url: location.origin + location.pathname,
+    });
+    document.head.appendChild(ld);
+  }
+}
+
+/* =========================================================
+   集点卡
+   ========================================================= */
+function stampCardHtml(stamps, needed) {
+  const shown = Math.min(stamps, needed);
+  const dots = Array.from({ length: needed }, (_, i) => `<span class="stamp ${i < shown ? 'on' : ''}" aria-hidden="true">${i < shown ? '★' : ''}</span>`).join('');
+  const msg = stamps >= needed ? t('loy.ready') : t('loy.more', { k: needed - stamps });
+  return `<p class="stamp-count">${t('loy.have', { s: stamps, n: needed })}</p><div class="stamps">${dots}</div><p class="stamp-msg">${msg}</p>`;
+}
+
+async function enterRewards() {
+  $('rwSub').textContent = t('loy.sub', { n: CFG.loyalty.stampsNeeded });
+  const saved = store.get('hitea-customer', {});
+  if (!$('rwPhone').value && saved.phone) { $('rwPhone').value = saved.phone; await lookupRewards(); }
+}
+
+async function lookupRewards() {
+  const box = $('rwCard');
+  try {
+    const r = await Api.loyalty($('rwPhone').value);
+    box.innerHTML = stampCardHtml(r.stamps, r.needed);
+  } catch (e) {
+    box.innerHTML = `<p class="form-error">${t('loy.badPhone')}</p>`;
+  }
+  box.hidden = false;
 }
 
 function buildHome() {
@@ -481,7 +579,7 @@ function renderCart() {
 
 function setupCart() {
   loadCart();
-  $('cartBtn').addEventListener('click', () => { renderCart(); $('cartDialog').showModal(); });
+  $('cartBtn').addEventListener('click', () => { renderCart(); renderRecent(); $('cartDialog').showModal(); });
   $('cartClose').addEventListener('click', () => $('cartDialog').close());
   $('cartDialog').addEventListener('click', e => { if (e.target === $('cartDialog')) $('cartDialog').close(); });
 }
@@ -489,7 +587,7 @@ function setupCart() {
 /* =========================================================
    7. 结账
    ========================================================= */
-const co = { how: 'pickup', pay: 'store', slots: null, submitting: false };
+const co = { how: 'pickup', pay: 'store', slots: null, submitting: false, wait: null, card: null, useReward: false, coupon: null };
 
 function radioGroup(boxId, name, options, value, onChange) {
   const box = $(boxId);
@@ -510,8 +608,61 @@ async function enterCheckout() {
   co.how = table ? 'table' : 'pickup';
   $('coError').hidden = true;
   renderCheckout();
+  loadCard();
   try { co.slots = await Api.slots(); } catch (e) { co.slots = { open: false, slots: [] }; }
+  try { co.wait = await Api.wait(Math.max(1, cartCount())); } catch (e) { co.wait = null; }
   renderCheckout();
+}
+
+/* 输入手机号后查集点卡（停止输入半秒后再查，免得每按一个键都请求一次） */
+let cardTimer = null;
+function loadCard() {
+  clearTimeout(cardTimer);
+  cardTimer = setTimeout(async () => {
+    const phone = $('coPhone').value;
+    if (!CFG.loyalty.enabled || Api.normPhone(phone).length < 10) { co.card = null; co.useReward = false; renderCheckout(); return; }
+    try { co.card = await Api.loyalty(phone); } catch (e) { co.card = null; }
+    if (!co.card || co.card.stamps < co.card.needed) co.useReward = false;
+    renderCheckout();
+    refreshCoupon();
+  }, 500);
+}
+
+function renderLoyaltyBox() {
+  const box = $('coLoyalty');
+  const qty = cartCount();
+  if (!CFG.loyalty.enabled) { box.hidden = true; return; }
+  box.hidden = false;
+  if (!co.card) { box.innerHTML = `<p class="hint">★ ${t('loy.earn', { n: qty })}</p>`; return; }
+  const can = co.card.stamps >= co.card.needed;
+  const freeCents = can ? Math.min(...cart.map(l => unitCents(l.recipe, l.drinkId))) : 0;
+  box.innerHTML = stampCardHtml(co.card.stamps, co.card.needed) +
+    (can ? `<label class="chk use-reward"><input type="checkbox" id="useReward" ${co.useReward ? 'checked' : ''}> ${t('loy.use', { n: co.card.needed, amt: money(freeCents) })}</label>` : '') +
+    `<p class="hint">${t('loy.earn', { n: qty - (co.useReward ? 1 : 0) })}</p>`;
+  const cb = $('useReward');
+  if (cb) cb.addEventListener('change', () => { co.useReward = cb.checked; renderCheckout(); refreshCoupon(); });
+}
+
+/* 优惠码：每次购物车或兑换变化，重新问一下服务器能减多少 */
+async function applyCoupon(code) {
+  $('couponErr').hidden = true;
+  try {
+    const lines = cart.map(l => ({ drinkId: l.drinkId, recipe: l.recipe, qty: l.qty }));
+    co.coupon = await Api.checkCoupon(code, lines, MENU, co.useReward);
+  } catch (e) {
+    co.coupon = null;
+    const c = (CFG.coupons || []).find(x => x.code === String(code).toUpperCase());
+    $('couponErr').textContent = t('err.' + (e.code || 'coupon_invalid'), { min: money(Pricing.cents(c?.minSubtotal || 0)) });
+    if ($('couponErr').textContent.startsWith('err.')) $('couponErr').textContent = t('err.coupon_invalid');
+    $('couponErr').hidden = false;
+  }
+  renderCheckout();
+}
+let couponTimer = null;
+function refreshCoupon() {
+  if (!co.coupon) return;
+  clearTimeout(couponTimer);
+  couponTimer = setTimeout(() => applyCoupon(co.coupon.code), 250);
 }
 
 function shopTime(iso) {
@@ -546,6 +697,10 @@ function renderCheckout() {
   const closed = s && !s.open && (co.how === 'table' || s.slots.length === 0);
   $('coClosed').hidden = !closed;
   $('coClosed').textContent = t('co.closed', { open: CFG.hours.open, close: CFG.hours.close });
+  // 预计等待时间：选"尽快"或者堂食时才显示
+  const showEta = co.wait && (co.how === 'table' || sel.value === 'asap');
+  $('coEta').hidden = !showEta;
+  if (showEta) $('coEta').textContent = '⏱ ' + t('wait.checkout', { n: co.wait.minutes });
 
   // 付款方式
   const payOpts = [{ value: 'store', label: t('co.payStore') }];
@@ -558,7 +713,22 @@ function renderCheckout() {
   $('coItems').innerHTML = cart.map(l => `
     <li><div><strong>${esc(drinkName(l.recipe, l.drinkId))}</strong> × ${l.qty}<span>${esc(describe(l.recipe))}</span></div>
     <b>${money(unitCents(l.recipe, l.drinkId) * l.qty)}</b></li>`).join('');
-  const tot = Pricing.totals(cart, MENU, CFG.shop.taxRate);
+  renderLoyaltyBox();
+  const rewardCents = co.useReward ? Math.min(...cart.map(l => unitCents(l.recipe, l.drinkId))) : 0;
+  const couponCents = co.coupon ? co.coupon.off : 0;
+  const tot = Pricing.totals(cart, MENU, CFG.shop.taxRate, rewardCents + couponCents);
+  $('coRewardRow').hidden = !rewardCents;
+  $('coReward').textContent = '−' + money(rewardCents);
+  $('coCouponRow').hidden = !couponCents;
+  $('coCouponLabel').textContent = co.coupon ? `${t('co.coupon')} ${co.coupon.code}` : '';
+  $('coCouponAmt').textContent = '−' + money(couponCents);
+  $('couponRow').hidden = !!co.coupon;
+  $('couponOn').hidden = !co.coupon;
+  if (co.coupon) {
+    $('couponOn').innerHTML = `<span class="coupon-chip">🏷 ${esc(co.coupon.code)} · ${esc(L(co.coupon.label))}</span>
+      <button type="button" class="link-btn" id="couponRemove">${t('co.remove')}</button>`;
+    $('couponRemove').onclick = () => { co.coupon = null; $('coCoupon').value = ''; renderCheckout(); };
+  }
   $('coSub').textContent = money(tot.subtotal);
   $('coTaxLabel').textContent = t('co.tax', { name: CFG.shop.taxName });
   $('coTax').textContent = money(tot.tax);
@@ -587,6 +757,7 @@ async function submitOrder(e) {
     pickupAt: co.how === 'pickup' ? $('coTime').value : undefined,
     name, phone: $('coPhone').value.trim(), note: $('coNote').value.trim(),
     payment: co.pay, lang: I18N.lang,
+    couponCode: co.coupon ? co.coupon.code : undefined, useReward: co.useReward || undefined,
   };
   try {
     const res = await Api.createOrder(body, MENU);
@@ -599,6 +770,8 @@ async function submitOrder(e) {
     renderCart();
     $('coNote').value = '';
     co.submitting = false;
+    co.coupon = null; co.useReward = false; co.card = null;
+    $('coCoupon').value = '';
     updateOrderChip();
     if (res.paymentFallback) toast(t('err.payment'));
     if (res.checkoutUrl) { location.href = res.checkoutUrl; return; }   // 跳到 Stripe 付款页面
@@ -608,6 +781,8 @@ async function submitOrder(e) {
     co.submitting = false;
     showCoError(err.code || 'generic');
     if (err.code === 'sold_out') await refreshMenu();
+    if (String(err.code).startsWith('coupon_')) { co.coupon = null; }
+    if (err.code === 'not_enough_stamps') { co.useReward = false; loadCard(); }
     if (err.code === 'bad_pickup_time') { co.slots = await Api.slots().catch(() => co.slots); }
     renderCheckout();
   }
@@ -681,11 +856,21 @@ function renderOrder(o) {
   info.push([t('co.pay'), o.paid && o.payment === 'online' ? t('ord.paid') : t('ord.payAtStore')]);
   $('ordInfo').innerHTML = info.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('');
 
+  // 排队：前面还有几杯
+  const showEta = ['new', 'making'].includes(o.status) && o.etaMinutes;
+  $('ordEta').hidden = !showEta;
+  if (showEta) $('ordEta').textContent = '⏱ ' + (o.ahead > 0 ? t('wait.ahead', { n: o.ahead, m: o.etaMinutes }) : t('wait.next', { m: o.etaMinutes }));
+  // 集点卡
+  $('ordStamps').hidden = !(o.stamps > 0) || o.status === 'cancelled';
+  if (o.stamps > 0) $('ordStamps').innerHTML = `★ ${o.stamped ? t('loy.earned', { n: o.stamps }) : t('loy.willEarn', { n: o.stamps })} · <a href="#/rewards">${t('loy.link')}</a>`;
+
   $('ordItems').innerHTML = o.items.map(it => `
     <li><div><strong>${esc(it.name ? L(it.name) : t('custom'))}</strong> × ${it.qty}<span>${esc(describe(it.recipe))}</span></div>
     <b>${money(it.unit * it.qty)}</b></li>`).join('');
+  const discLabel = [o.rewardUsed ? t('co.reward') : '', o.coupon ? `${t('co.coupon')} ${o.coupon}` : ''].filter(Boolean).join(' + ');
   $('ordTotals').innerHTML = `
     <div><dt>${t('co.subtotal')}</dt><dd>${money(o.subtotal)}</dd></div>
+    ${o.discount ? `<div class="disc"><dt>${esc(discLabel)}</dt><dd>−${money(o.discount)}</dd></div>` : ''}
     <div><dt>${t('co.tax', { name: CFG.shop.taxName })}</dt><dd>${money(o.tax)}</dd></div>
     <div class="grand"><dt>${t('co.total')}</dt><dd>${money(o.total)}</dd></div>`;
 
@@ -696,8 +881,51 @@ function renderOrder(o) {
   if (['done', 'cancelled'].includes(o.status)) stopOrderPolling();
 }
 
+/* 再来一单：把一张订单里的饮品重新放进购物车（售罄的跳过） */
+function reorder(items) {
+  let added = 0, skipped = 0;
+  items.forEach(it => {
+    const r = fromQuery(toQuery(it.recipe));
+    if (!recipeOk(r)) { skipped++; return; }
+    const line = { drinkId: matchDrink(r, it.drinkId) ? it.drinkId : null, recipe: r, qty: it.qty };
+    const same = cart.find(l => l.drinkId === line.drinkId && Pricing.sameRecipe(l.recipe, line.recipe));
+    if (same) same.qty = Math.min(20, same.qty + line.qty); else cart.push(line);
+    added++;
+  });
+  saveCart();
+  renderCart();
+  if (added) { Sound.chime(); toast(skipped ? t('reorder.partly') : t('reorder.done')); $('cartDialog').showModal(); }
+  else toast(t('soldoutToday'));
+}
+
+/* 购物车里显示最近 3 单，可以一键再来一单 */
+async function renderRecent() {
+  const mine = store.get('hitea-my-orders', []).slice(0, 3);
+  const box = $('recentBox');
+  box.hidden = mine.length === 0;
+  if (!mine.length) return;
+  const list = $('recentList');
+  const rows = await Promise.all(mine.map(m => Api.getOrder(m.id, m.token).catch(() => null)));
+  list.innerHTML = '';
+  rows.forEach(o => {
+    if (!o) return;
+    const li = document.createElement('li');
+    const n = o.items.reduce((s, it) => s + it.qty, 0);
+    li.innerHTML = `<span><b>#${esc(o.number)}</b> ${t('recent.items', { n, total: money(o.total) })}</span><button class="link-btn">${t('reorder')}</button>`;
+    li.querySelector('button').addEventListener('click', () => reorder(o.items));
+    list.appendChild(li);
+  });
+  box.hidden = !list.children.length;
+}
+
 function setupOrder() {
   $('coForm').addEventListener('submit', submitOrder);
+  $('ordReorder').addEventListener('click', () => ord.data && reorder(ord.data.items));
+  $('coPhone').addEventListener('input', loadCard);
+  $('coTime').addEventListener('change', renderCheckout);
+  $('coCouponBtn').addEventListener('click', () => { const c = $('coCoupon').value.trim(); if (c) applyCoupon(c); });
+  $('coCoupon').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('coCouponBtn').click(); } });
+  $('rwForm').addEventListener('submit', e => { e.preventDefault(); lookupRewards(); });
   $('ordNotify').addEventListener('click', async () => {
     if (Notification.permission !== 'granted') await Notification.requestPermission();
     if (ord.data) renderOrder(ord.data);
@@ -752,6 +980,9 @@ function rebuildAll() {
   renderDiy();
   buildMenuGrid();
   buildHome();
+  buildFeatured();
+  renderStore();
+  renderInstall();
   buildMoodChips();
   if (CFG.features.wheel) drawWheel($('wheel'), false);
   if (weather.loaded) renderWeather();
@@ -799,6 +1030,46 @@ function readLandingParams() {
   if (location.search) history.replaceState(null, '', location.pathname + hash);
 }
 
+
+/* =========================================================
+   PWA：可以"安装"到手机主屏幕，像 App 一样打开
+   ========================================================= */
+let installPrompt = null;
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+function renderInstall() {
+  const card = $('installCard');
+  $('installWhy').textContent = t('pwa.why', { name: CFG.shop.name });
+  if (isStandalone()) { card.hidden = true; $('installBtn').hidden = true; return; }
+  const canPrompt = !!installPrompt;
+  const ios = isIOS();
+  card.hidden = !(canPrompt || ios);
+  $('installCardBtn').hidden = !canPrompt;
+  $('installBtn').hidden = !canPrompt;
+  $('iosTip').hidden = !(ios && !canPrompt);
+}
+
+async function doInstall() {
+  if (!installPrompt) return;
+  installPrompt.prompt();
+  try { await installPrompt.userChoice; } catch (e) { /* 忽略 */ }
+  installPrompt = null;
+  renderInstall();
+}
+
+function setupPwa() {
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* 注册失败不影响点单 */ });
+  }
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e; renderInstall(); });
+  window.addEventListener('appinstalled', () => { installPrompt = null; renderInstall(); toast(t('pwa.installed')); });
+  $('installBtn').addEventListener('click', doInstall);
+  $('installCardBtn').addEventListener('click', doInstall);
+  // 每分钟刷新一下"营业中/已打烊"
+  setInterval(() => { if (CFG) renderStore(); }, 60000);
+}
+
 async function boot() {
   readLandingParams();
   CFG = await Api.init();
@@ -811,6 +1082,7 @@ async function boot() {
   setupWheel();
   setupCart();
   setupOrder();
+  setupPwa();
   rebuildAll();
   Api.on('menu', refreshMenu);
   router();

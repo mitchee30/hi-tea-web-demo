@@ -36,7 +36,7 @@ if (fs.existsSync(envFile) && process.loadEnvFile) process.loadEnvFile(envFile);
 const Pricing = require('../public/pricing.js');
 const store = require('./db');
 const { pickupSlots, partsIn } = require('./time');
-const { validateMenu } = require('./menu');
+const { validateMenu, validateCoupons } = require('./menu');
 const { createRealtime } = require('./realtime');
 const payments = require('./stripe');
 
@@ -52,6 +52,21 @@ else if (!process.env.ADMIN_PIN) console.warn('⚠️  店员 PIN 使用默认�
 
 // 第一次启动：把配置文件里的菜单写进数据库
 if (!store.getMenu()) store.saveMenu(CONFIG.menu);
+if (!store.getSettingJSON('coupons')) store.saveCoupons(CONFIG.coupons || []);
+const LOYALTY = CONFIG.loyalty && CONFIG.loyalty.enabled ? CONFIG.loyalty : null;
+
+// 老版本数据库里的菜单没有咖啡因、过敏原、标签这些字段：按 id 从配置文件补上
+(function migrateMenu() {
+  const m = store.getMenu();
+  let changed = false;
+  [['teas', ['caffeine']], ['milks', ['allergens']], ['toppings', ['allergens']], ['drinks', ['badge']]].forEach(([sec, fields]) => {
+    (m[sec] || []).forEach(item => {
+      const base = (CONFIG.menu[sec] || []).find(x => x.id === item.id);
+      fields.forEach(f => { if (!(f in item)) { item[f] = base && f in base ? base[f] : (f === 'allergens' ? [] : f === 'caffeine' ? 'mid' : null); changed = true; } });
+    });
+  });
+  if (changed) store.saveMenu(m);
+})();
 const menu = () => store.getMenu();
 
 /* ---------- 小工具 ---------- */
@@ -70,6 +85,7 @@ function httpError(res, status, code) { return res.status(status).json({ error: 
 function rateLimit(max, windowMs) {
   const hits = new Map();
   return (req, res, next) => {
+    if (process.env.RATE_LIMIT_OFF === '1' && !IS_PROD) return next();   // 只给自动测试用
     const now = Date.now();
     const key = req.ip;
     const list = (hits.get(key) || []).filter(t => now - t < windowMs);
@@ -85,9 +101,24 @@ function publicOrder(o) {
   return {
     id: o.id, number: o.number, status: o.status, type: o.type, table: o.table_no,
     pickupAt: o.pickup_at, name: o.customer_name, items: o.items,
-    subtotal: o.subtotal, tax: o.tax, total: o.total, payment: o.payment, paid: o.paid,
+    subtotal: o.subtotal, discount: o.discount || 0, coupon: o.coupon || null, rewardUsed: !!o.reward_used,
+    tax: o.tax, total: o.total, payment: o.payment, paid: o.paid,
+    stamps: o.stamps || 0, stamped: !!o.stamped,
+    ...queueInfo(o),
     createdAt: o.created_at, updatedAt: o.updated_at,
   };
+}
+
+/* 排队估算：前面还有几杯、大概还要几分钟 */
+const PER_DRINK = CONFIG.hours.minutesPerDrink || 2;
+function queueInfo(o) {
+  if (!['new', 'making'].includes(o.status)) return { ahead: 0, etaMinutes: 0 };
+  let ahead = 0, mine = 0;
+  for (const q of store.queue()) {
+    if (q.id === o.id) { mine = q.drinks; break; }
+    ahead += q.drinks;
+  }
+  return { ahead, etaMinutes: Math.max(1, Math.ceil((ahead + mine) * PER_DRINK)) };
 }
 const staffOrder = o => ({ ...publicOrder(o), phone: o.phone, note: o.note, lang: o.lang });
 
@@ -140,6 +171,11 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json', limit: '
         emitOrder(store.updateOrder(o.id, { paid: true, status: o.status === 'awaiting_payment' ? 'new' : o.status }));
       }
     }
+    // 付款页面过期没付：取消订单，退回印章和优惠码次数
+    if (event.type === 'checkout.session.expired') {
+      const o = store.getOrderBySession(event.data.object.id);
+      if (o && o.status === 'awaiting_payment') emitOrder(cancelOrder(o));
+    }
     res.json({ received: true });
   } catch (e) {
     console.error('webhook error:', e.message);
@@ -153,10 +189,55 @@ app.use(express.json({ limit: '64kb' }));
 app.get('/api/config', (req, res) => {
   const { shop, theme, hours, features } = CONFIG;
   res.json({
-    shop, theme, hours: { open: hours.open, close: hours.close, prepMinutes: hours.prepMinutes, demoAlwaysOpen: !!hours.demoAlwaysOpen },
+    shop, theme, hours: { open: hours.open, close: hours.close, prepMinutes: hours.prepMinutes, minutesPerDrink: PER_DRINK, demoAlwaysOpen: !!hours.demoAlwaysOpen },
     features, payments: { store: true, online: payments.enabled() },
+    loyalty: LOYALTY ? { enabled: true, stampsNeeded: LOYALTY.stampsNeeded } : { enabled: false },
   });
 });
+
+/* 现在下单大概要等多久 */
+app.get('/api/wait', (req, res) => {
+  const n = Math.max(1, Math.min(30, Number(req.query.drinks) || 1));
+  const queueDrinks = store.queue().reduce((s, q) => s + q.drinks, 0);
+  res.json({ queueDrinks, minutes: Math.max(CONFIG.hours.prepMinutes || 10, Math.ceil((queueDrinks + n) * PER_DRINK) + 3) });
+});
+
+/* 查集点卡：只返回印章数量，不返回任何个人信息 */
+app.get('/api/loyalty', rateLimit(30, 10 * 60 * 1000), (req, res) => {
+  if (!LOYALTY) return res.json({ enabled: false });
+  const c = store.card(req.query.phone);
+  if (!c) return httpError(res, 400, 'bad_phone');
+  res.json({ enabled: true, stamps: c.stamps, needed: LOYALTY.stampsNeeded });
+});
+
+/* 检查优惠码：顾客在结账页输入时用 */
+app.post('/api/coupons/check', rateLimit(30, 10 * 60 * 1000), (req, res) => {
+  const b = req.body || {};
+  const c = store.findCoupon(b.code);
+  if (!c) return httpError(res, 400, 'coupon_invalid');
+  const parsed = parseLines(b.lines, menu());
+  if (parsed.error) return httpError(res, 400, parsed.error);
+  const d = Pricing.discounts({ lines: parsed.lines, menu: menu(), coupon: c, useReward: !!b.useReward });
+  if (d.error) return httpError(res, 400, d.error);
+  res.json({ code: c.code, label: c.label, off: d.coupon, minSubtotal: c.minSubtotal });
+});
+
+/* 检查购物车里的每一杯（下单和检查优惠码都用） */
+function parseLines(raw, m) {
+  if (!Array.isArray(raw) || raw.length < 1 || raw.length > 20) return { error: 'empty_cart' };
+  const lines = [];
+  for (const l of raw) {
+    const qty = Number(l && l.qty);
+    if (!Number.isInteger(qty) || qty < 1 || qty > 20) return { error: 'bad_qty' };
+    const chk = Pricing.checkRecipe(l.recipe, m, CONFIG.features.maxToppings || 3);
+    if (!chk.ok) return { error: chk.error };
+    const drink = l.drinkId && m.drinks.find(d => d.id === l.drinkId && d.active);
+    const isPreset = drink && Pricing.sameRecipe(drink.preset, chk.recipe);
+    lines.push({ drinkId: isPreset ? drink.id : null, recipe: chk.recipe, qty, name: isPreset ? drink.name : null });
+  }
+  if (lines.reduce((s, l) => s + l.qty, 0) > 30) return { error: 'too_many_items' };
+  return { lines };
+}
 
 app.get('/api/menu', (req, res) => res.json(menu()));
 
@@ -168,18 +249,9 @@ app.post('/api/orders', rateLimit(12, 10 * 60 * 1000), async (req, res) => {
   const lang = b.lang === 'en' ? 'en' : 'zh';
 
   // 1. 检查每一杯
-  if (!Array.isArray(b.lines) || b.lines.length < 1 || b.lines.length > 20) return httpError(res, 400, 'empty_cart');
-  const lines = [];
-  for (const l of b.lines) {
-    const qty = Number(l.qty);
-    if (!Number.isInteger(qty) || qty < 1 || qty > 20) return httpError(res, 400, 'bad_qty');
-    const chk = Pricing.checkRecipe(l.recipe, m, CONFIG.features.maxToppings || 3);
-    if (!chk.ok) return httpError(res, 400, chk.error);
-    const drink = l.drinkId && m.drinks.find(d => d.id === l.drinkId && d.active);
-    const isPreset = drink && Pricing.sameRecipe(drink.preset, chk.recipe);
-    lines.push({ drinkId: isPreset ? drink.id : null, recipe: chk.recipe, qty, name: isPreset ? drink.name : null });
-  }
-  if (lines.reduce((s, l) => s + l.qty, 0) > 30) return httpError(res, 400, 'too_many_items');
+  const parsed = parseLines(b.lines, m);
+  if (parsed.error) return httpError(res, 400, parsed.error);
+  const lines = parsed.lines;
 
   // 2. 取餐方式和时间
   let type = b.type === 'table' && CONFIG.features.tableOrdering ? 'table' : 'pickup';
@@ -202,21 +274,41 @@ app.post('/api/orders', rateLimit(12, 10 * 60 * 1000), async (req, res) => {
   const phone = clean(b.phone, 20);
   const note = clean(b.note, 140);
 
-  // 3. 服务器自己算价格
-  const t = Pricing.totals(lines, m, CONFIG.shop.taxRate);
+  // 3. 优惠：集点卡兑换一杯 + 优惠码
+  const useReward = !!b.useReward && !!LOYALTY;
+  const cardPhone = store.normPhone(phone);
+  if (useReward && cardPhone.length < 7) return httpError(res, 400, 'phone_required');
+  let coupon = null;
+  if (b.couponCode) {
+    coupon = store.findCoupon(b.couponCode);
+    if (!coupon) return httpError(res, 400, 'coupon_invalid');
+  }
+  const d = Pricing.discounts({ lines, menu: m, useReward, coupon });
+  if (d.error) return httpError(res, 400, d.error);
+
+  // 4. 服务器自己算价格
+  const t = Pricing.totals(lines, m, CONFIG.shop.taxRate, d.reward + d.coupon);
   const items = lines.map(l => ({
     drinkId: l.drinkId, name: l.name, recipe: l.recipe, qty: l.qty,
     unit: Pricing.recipeCents(l.recipe, m, l.drinkId),
   }));
+  const totalQty = lines.reduce((s, l) => s + l.qty, 0);
+  // 留了手机号才能攒印章；免费的那杯不算
+  const stamps = LOYALTY && cardPhone.length >= 7 ? totalQty - (useReward ? 1 : 0) : 0;
 
-  // 4. 付款方式
-  const payment = b.payment === 'online' && payments.enabled() ? 'online' : 'store';
+  // 先扣印章（不够就不让下单），再记一次优惠码使用
+  if (useReward && !store.changeStamps(cardPhone, -LOYALTY.stampsNeeded, { redeem: 1 })) return httpError(res, 400, 'not_enough_stamps');
+  if (coupon) store.useCoupon(coupon.code, 1);
+
+  // 5. 付款方式
+  const payment = b.payment === 'online' && payments.enabled() && t.total > 0 ? 'online' : 'store';
   const now = new Date().toISOString();
   const order = store.createOrder({
     id: newId(), token: newToken(), number: store.nextNumber(partsIn(new Date(), CONFIG.shop.timezone).day),
     status: payment === 'online' ? 'awaiting_payment' : 'new',
     type, table_no: tableNo, pickup_at: pickupAt, customer_name: name, phone, note, lang,
-    items, subtotal: t.subtotal, tax: t.tax, total: t.total, payment, paid: false,
+    items, subtotal: t.subtotal, tax: t.tax, total: t.total, payment, paid: t.total === 0,
+    discount: t.discount, coupon: coupon ? coupon.code : null, reward_used: useReward, stamps,
     created_at: now, updated_at: now,
   });
 
@@ -242,11 +334,19 @@ function baseUrl(req) {
 
 async function startCheckout(order, req, m) {
   const lang = order.lang;
-  const lineItems = order.items.map(it => ({
+  let lineItems = order.items.map(it => ({
     name: it.name ? L(it.name, lang) : (lang === 'en' ? 'Custom drink' : '我的特调'),
     description: describeRecipe(it.recipe, m, lang),
     unit: it.unit, qty: it.qty,
   }));
+  // 有优惠时，Stripe 的单价不能是负数，所以合并成一行"订单 #xxx"，金额是优惠后的小计
+  if (order.discount > 0) {
+    lineItems = [{
+      name: `${CONFIG.shop.name} #${order.number}`,
+      description: lineItems.map(li => `${li.qty}× ${li.name}`).join(', ') + (lang === 'en' ? ' (discount applied)' : '（已优惠）'),
+      unit: order.subtotal - order.discount, qty: 1,
+    }];
+  }
   const back = `${baseUrl(req)}/?order=${order.id}&token=${order.token}`;
   const session = await payments.createCheckout({
     lineItems, tax: order.tax, taxName: CONFIG.shop.taxName, currency: CONFIG.shop.currency,
@@ -319,13 +419,23 @@ app.get('/api/admin/orders', requireStaff, (req, res) => {
 
 // 订单状态只能按顺序往前走（或者取消）
 const NEXT = { new: ['making', 'cancelled'], making: ['ready', 'cancelled'], ready: ['done'], done: [], cancelled: [] };
+
+/* 取消订单：退回兑换用掉的印章、退回优惠码次数 */
+function cancelOrder(o) {
+  if (o.reward_used && LOYALTY) store.changeStamps(o.phone, LOYALTY.stampsNeeded, { redeem: -1 });
+  if (o.coupon) store.useCoupon(o.coupon, -1);
+  return store.updateOrder(o.id, { status: 'cancelled' });
+}
 app.post('/api/admin/orders/:id/status', requireStaff, (req, res) => {
   const o = store.getOrder(req.params.id);
   if (!o) return httpError(res, 404, 'not_found');
   const to = (req.body || {}).status;
   if (!(NEXT[o.status] || []).includes(to)) return httpError(res, 400, 'bad_transition');
+  if (to === 'cancelled') { const o2 = cancelOrder(o); emitOrder(o2); return res.json(staffOrder(o2)); }
   const fields = { status: to };
   if (to === 'done' && o.payment === 'store') fields.paid = true;   // 到店付款的，取走时就算付了
+  // 取走了：给集点卡加印章
+  if (to === 'done' && LOYALTY && o.stamps > 0 && !o.stamped && store.changeStamps(o.phone, o.stamps)) fields.stamped = true;
   const o2 = store.updateOrder(o.id, fields);
   emitOrder(o2);
   res.json(staffOrder(o2));
@@ -348,6 +458,34 @@ app.post('/api/admin/menu/reset', requireStaff, (req, res) => {
   store.saveMenu(CONFIG.menu);
   realtime.menuChanged();
   res.json(CONFIG.menu);
+});
+
+app.get('/api/admin/coupons', requireStaff, (req, res) => res.json(store.getCoupons()));
+
+app.put('/api/admin/coupons', requireStaff, (req, res) => {
+  try {
+    const list = validateCoupons(req.body);
+    // 使用次数以服务器记录为准，不让后台随便改
+    const old = store.getCoupons();
+    list.forEach(c => { const o = old.find(x => x.code === c.code); c.uses = o ? o.uses || 0 : 0; });
+    store.saveCoupons(list);
+    res.json(list);
+  } catch (e) { httpError(res, e.status || 500, e.status ? 'invalid_coupons: ' + e.message : 'server_error'); }
+});
+
+app.get('/api/admin/loyalty', requireStaff, (req, res) => {
+  const c = store.card(req.query.phone);
+  if (!c) return httpError(res, 400, 'bad_phone');
+  res.json({ ...c, needed: LOYALTY ? LOYALTY.stampsNeeded : null });
+});
+
+// 店里现场买的（没在网上下单）也能手动加印章
+app.post('/api/admin/loyalty', requireStaff, (req, res) => {
+  const delta = Number((req.body || {}).delta);
+  if (!Number.isInteger(delta) || delta === 0 || Math.abs(delta) > 50) return httpError(res, 400, 'bad_delta');
+  const c = store.changeStamps((req.body || {}).phone, delta);
+  if (!c) return httpError(res, 400, 'bad_phone_or_not_enough');
+  res.json({ ...c, needed: LOYALTY ? LOYALTY.stampsNeeded : null });
 });
 
 app.get('/api/admin/qr', requireStaff, async (req, res) => {

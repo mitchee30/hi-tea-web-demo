@@ -33,6 +33,7 @@
     <nav class="a-tabs" role="tablist">
       <button role="tab" data-tab="orders" aria-selected="true"><span data-i18n="a.tabOrders"></span> <span class="badge" id="newCount" hidden>0</span></button>
       <button role="tab" data-tab="menu" aria-selected="false" data-i18n="a.tabMenu"></button>
+      <button role="tab" data-tab="promo" aria-selected="false" data-i18n="a.tabPromo"></button>
       <button role="tab" data-tab="qr" aria-selected="false" data-i18n="a.tabQr"></button>
     </nav>
     <div class="a-tools">
@@ -73,6 +74,30 @@
       <span id="saveState"></span>
       <button class="btn ghost" id="resetMenuBtn" data-i18n="a.resetMenu"></button>
       <button class="btn" id="saveMenuBtn" data-i18n="a.save"></button>
+    </div>
+  </section>
+
+  <!-- 优惠码与集点卡 -->
+  <section class="a-panel" id="tab-promo" hidden>
+    <div class="promo-grid">
+      <section class="ed-sec">
+        <div class="ed-head"><h2 data-i18n="a.coupons"></h2><button class="btn btn-sm ghost" id="cpAdd" data-i18n="a.add"></button></div>
+        <p class="hint" data-i18n="a.couponHint"></p>
+        <div id="cpList"></div>
+        <div class="save-bar inline" id="cpBar">
+          <span id="cpState"></span>
+          <button class="btn" id="cpSave" data-i18n="a.saveCoupons"></button>
+        </div>
+      </section>
+      <section class="ed-sec loy-admin">
+        <div class="ed-head"><h2 data-i18n="a.loyalty"></h2></div>
+        <p class="hint" id="loyHint"></p>
+        <form class="rw-form" id="loyForm">
+          <input class="field" id="loyPhone" type="tel" maxlength="20" data-i18n-ph="a.phonePh">
+          <button class="btn" type="submit" data-i18n="a.lookup"></button>
+        </form>
+        <div id="loyResult" hidden></div>
+      </section>
     </div>
   </section>
 

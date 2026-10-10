@@ -4,6 +4,7 @@
    2. 订单看板：新订单实时出现，点按钮推进状态，顾客手机同步更新
    3. 菜单管理：改名字、价格、售罄，加减饮品，不用改代码
    4. 桌号二维码：生成、打印，贴在桌上扫码点单
+   5. 优惠码与集点卡：增删优惠码，查顾客印章、现场加章
    ========================================================= */
 I18N.extend('zh', {
   'a.title': '店员后台', 'a.loginTitle': '输入店员 PIN 登录', 'a.pin': 'PIN', 'a.login': '登录',
@@ -26,6 +27,17 @@ I18N.extend('zh', {
   'a.newDrink': '新饮品', 'a.newTea': '新茶底', 'a.newTopping': '新小料',
   'a.tables': '桌子数量', 'a.makeQr': '生成二维码', 'a.print': '打印', 'a.qrHint': '顾客扫码会打开：{url}',
   'a.scan': '扫码点单 · Scan to order',
+  'a.tabPromo': '优惠与集点', 'a.coupons': '优惠码', 'a.loyalty': '集点卡',
+  'a.couponHint': '顾客结账时输入优惠码。"满"是小计满多少才能用；"次数上限"留空就是不限次数；到期日留空就是一直有效。',
+  'a.cpCode': '优惠码', 'a.cpType': '类型', 'a.cpAmount': '减金额 $', 'a.cpPercent': '打折 %', 'a.cpValue': '数值', 'a.cpMin': '满 $',
+  'a.cpMax': '次数上限', 'a.cpExpires': '到期日', 'a.cpLabelZh': '中文说明', 'a.cpLabelEn': '英文说明', 'a.cpActive': '启用', 'a.cpUses': '已用 {n} 次',
+  'a.saveCoupons': '保存优惠码', 'a.cpSaved': '优惠码已保存', 'a.newCoupon': 'NEWCODE',
+  'a.loyHint': '每取走一杯自动攒 1 个印章，集满 {n} 个换一杯。在店里现场买的，也可以在这里手动加印章。',
+  'a.loyOff': '集点卡在 shop.config.json 里关掉了。', 'a.phonePh': '顾客手机号', 'a.lookup': '查询',
+  'a.loyStat': '现在 {s} 个印章 · 累计攒了 {e} 个 · 兑换过 {r} 次', 'a.addStamp': '+{n} 个', 'a.removeStamp': '−1 个', 'a.redeemNow': '现场兑换一杯（−{n}）',
+  'a.loyBad': '手机号不对，或者印章不够', 'a.loyDone': '已更新',
+  'a.badge': '标签', 'a.badgeNone': '无', 'a.caffeine': '咖啡因', 'a.allergens': '过敏原',
+  'a.oReward': '集点兑换 1 杯', 'a.oCoupon': '优惠码 {c}', 'a.oDiscount': '已减 {d}', 'a.oStamps': '+{n} 印章',
 });
 I18N.extend('en', {
   'a.title': 'Staff', 'a.loginTitle': 'Enter the staff PIN', 'a.pin': 'PIN', 'a.login': 'Log in',
@@ -48,6 +60,17 @@ I18N.extend('en', {
   'a.newDrink': 'New drink', 'a.newTea': 'New tea', 'a.newTopping': 'New topping',
   'a.tables': 'Number of tables', 'a.makeQr': 'Make QR codes', 'a.print': 'Print', 'a.qrHint': 'Scanning opens: {url}',
   'a.scan': '扫码点单 · Scan to order',
+  'a.tabPromo': 'Promos & stamps', 'a.coupons': 'Promo codes', 'a.loyalty': 'Stamp cards',
+  'a.couponHint': 'Customers enter a code at checkout. "Min" is the subtotal needed; leave "Max uses" blank for unlimited and "Expires" blank for no end date.',
+  'a.cpCode': 'Code', 'a.cpType': 'Type', 'a.cpAmount': '$ off', 'a.cpPercent': '% off', 'a.cpValue': 'Value', 'a.cpMin': 'Min $',
+  'a.cpMax': 'Max uses', 'a.cpExpires': 'Expires', 'a.cpLabelZh': 'Label (中)', 'a.cpLabelEn': 'Label (EN)', 'a.cpActive': 'Active', 'a.cpUses': 'Used {n} times',
+  'a.saveCoupons': 'Save codes', 'a.cpSaved': 'Promo codes saved', 'a.newCoupon': 'NEWCODE',
+  'a.loyHint': 'Each drink picked up earns 1 stamp; {n} stamps = 1 free drink. Add stamps by hand here for in-store purchases.',
+  'a.loyOff': 'Stamp cards are turned off in shop.config.json.', 'a.phonePh': "Customer's phone", 'a.lookup': 'Look up',
+  'a.loyStat': '{s} stamps now · {e} earned in total · redeemed {r} times', 'a.addStamp': '+{n}', 'a.removeStamp': '−1', 'a.redeemNow': 'Redeem a drink now (−{n})',
+  'a.loyBad': 'Wrong phone number, or not enough stamps', 'a.loyDone': 'Updated',
+  'a.badge': 'Badge', 'a.badgeNone': 'None', 'a.caffeine': 'Caffeine', 'a.allergens': 'Allergens',
+  'a.oReward': 'Free drink (stamps)', 'a.oCoupon': 'Code {c}', 'a.oDiscount': '−{d}', 'a.oStamps': '+{n} stamp(s)',
 });
 
 const $ = id => document.getElementById(id);
@@ -138,6 +161,7 @@ async function enterApp() {
   Sound.setSfx(alertOn);
   connect();
   renderMenuEditor();
+  await loadPromo();
   $('qrHint').textContent = t('a.qrHint', { url: location.origin + '/?table=1' });
 }
 
@@ -222,12 +246,22 @@ function card(o) {
       ${due ? `<p class="o-due">${t('a.due')}</p>` : ''}
       <ul class="o-items">${items}</ul>
       ${o.note ? `<p class="o-note">${esc(o.note)}</p>` : ''}
+      ${promoTags(o)}
       <footer>
         <span class="o-total">${Pricing.format(o.total)}</span>
         <span class="o-pay ${o.paid ? 'paid' : ''}">${o.paid && o.payment === 'online' ? t('a.paid') : t('a.payStore')}</span>
       </footer>
       <div class="o-actions">${btns}</div>
     </article>`;
+}
+
+function promoTags(o) {
+  const tags = [];
+  if (o.rewardUsed) tags.push(`<span class="o-tag reward">★ ${t('a.oReward')}</span>`);
+  if (o.coupon) tags.push(`<span class="o-tag coupon">🏷 ${esc(t('a.oCoupon', { c: o.coupon }))}</span>`);
+  if (o.discount) tags.push(`<span class="o-tag">${t('a.oDiscount', { d: Pricing.format(o.discount) })}</span>`);
+  if (o.stamps && o.phone) tags.push(`<span class="o-tag stamp">${t('a.oStamps', { n: o.stamps })}${o.stamped ? ' ✓' : ''}</span>`);
+  return tags.length ? `<p class="o-tags">${tags.join('')}</p>` : '';
 }
 
 function renderBoard() {
@@ -294,6 +328,14 @@ function inp(sec, i, field, value, { type = 'text', label, cls = '', attrs = '' 
   return `<label class="ed ${cls}"><span>${t(label)}</span><input class="field" id="${id}" type="${type}" data-sec="${sec}" data-i="${i}" data-f="${field}" value="${esc(value)}" ${attrs}></label>`;
 }
 
+const BADGES = ['new', 'limited', 'hot'];
+const CAFFEINE = ['none', 'low', 'mid', 'high'];
+const ALLERGENS = ['dairy', 'egg', 'soy', 'gluten', 'nuts', 'sesame'];
+function optSel(sec, i, field, pairs, value) {
+  return `<select class="field" data-sec="${sec}" data-i="${i}" data-f="${field}">${pairs.map(([v, label]) =>
+    `<option value="${esc(v)}" ${String(v) === String(value) ? 'selected' : ''}>${esc(label)}</option>`).join('')}</select>`;
+}
+
 function sel(sec, i, field, list, value) {
   return `<select class="field" data-sec="${sec}" data-i="${i}" data-f="${field}">${list.map(x =>
     `<option value="${esc(x.id)}" ${String(x.id) === String(value) ? 'selected' : ''}>${esc(L(x.name))}</option>`).join('')}</select>`;
@@ -313,6 +355,7 @@ function rowHtml(sec, x, i) {
         ${inp(sec, i, 'short.zh', x.short?.zh || '', { label: 'a.shortZh', cls: 'narrow' })}
         ${inp(sec, i, 'short.en', x.short?.en || '', { label: 'a.shortEn', cls: 'narrow' })}
         ${price(`placeholder="${auto}"`, 'a.priceDrink')}
+        <label class="ed narrow"><span>${t('a.badge')}</span>${optSel(sec, i, 'badge', [['', t('a.badgeNone')], ...BADGES.map(b => [b, t('badge.' + b)])], x.badge || '')}</label>
         ${del}
       </div>
       <div class="ed-line">
@@ -340,8 +383,12 @@ function rowHtml(sec, x, i) {
     ${inp(sec, i, 'name.zh', x.name.zh, { label: 'a.nameZh' })}
     ${inp(sec, i, 'name.en', x.name.en, { label: 'a.nameEn' })}
     ${price('')}${colors}
+    ${sec === 'teas' ? `<label class="ed narrow"><span>${t('a.caffeine')}</span>${optSel(sec, i, 'caffeine', CAFFEINE.map(c => [c, t('caf.' + c)]), x.caffeine || 'mid')}</label>` : ''}
     ${['teas', 'toppings'].includes(sec) ? del : ''}
-  </div></div>`;
+  </div>
+  ${['milks', 'toppings'].includes(sec) ? `<div class="ed-line algs"><span class="ed-k">${t('a.allergens')}</span>${ALLERGENS.map(a =>
+    `<label class="chk"><input type="checkbox" data-sec="${sec}" data-i="${i}" data-alg="${a}" ${(x.allergens || []).includes(a) ? 'checked' : ''}> ${t('alg.' + a)}</label>`).join('')}</div>` : ''}
+  </div>`;
 }
 
 function renderMenuEditor() {
@@ -370,7 +417,11 @@ $('menuEditor').addEventListener('input', e => {
   const sec = el.dataset.sec, i = Number(el.dataset.i);
   if (!sec) return;
   const item = draft[sec][i];
-  if (el.dataset.top) {
+  if (el.dataset.alg) {
+    const set = new Set(item.allergens || []);
+    if (el.checked) set.add(el.dataset.alg); else set.delete(el.dataset.alg);
+    item.allergens = ALLERGENS.filter(a => set.has(a));
+  } else if (el.dataset.top) {
     const tops = item.preset.tops;
     if (el.checked) {
       if (tops.length >= 3) { el.checked = false; return toast(t('toast.maxTops', { n: 3 })); }
@@ -381,8 +432,9 @@ $('menuEditor').addEventListener('input', e => {
     let v = el.type === 'checkbox' ? el.checked : el.value;
     if (f === 'price') v = el.value === '' ? (sec === 'drinks' ? null : 0) : Number(el.value);
     if (f === 'preset.sweet') v = Number(v);
+    if (f === 'badge') v = v || null;
     setPath(item, f, v);
-    if (el.type === 'checkbox') el.closest('.ed-row').classList.toggle('off', !v);
+    if (el.type === 'checkbox' && (f === 'active' || f === 'available')) el.closest('.ed-row').classList.toggle('off', !v);
     if (el.type === 'color') {
       // 只更新色块，不重画整个表单（重画会打断正在拖动的取色器）
       const sw = el.closest('.ed-row').querySelector('.sw');
@@ -402,9 +454,9 @@ $('menuEditor').addEventListener('click', e => {
   const uid = p => p + '-' + Date.now().toString(36).slice(-6);
   if (add) {
     const sec = add.dataset.add;
-    if (sec === 'drinks') draft.drinks.push({ id: uid('drink'), active: false, name: { zh: t('a.newDrink'), en: 'New drink' }, short: { zh: '新饮品', en: 'New' }, desc: { zh: '', en: '' }, preset: { tea: draft.teas[0].id, milk: draft.milks[0].id, sweet: 50, ice: 'normal', size: draft.sizes[0].id, tops: [] }, tags: [], price: null });
-    if (sec === 'teas') draft.teas.push({ id: uid('tea'), name: { zh: t('a.newTea'), en: 'New tea' }, top: '#D9B48A', bottom: '#8A5A2B', price: 5.5, available: true });
-    if (sec === 'toppings') draft.toppings.push({ id: uid('top'), name: { zh: t('a.newTopping'), en: 'New topping' }, light: '#FFE0E6', dark: '#D46A86', r: 8, count: 12, zone: 'bottom', price: 0.75, available: true });
+    if (sec === 'drinks') draft.drinks.push({ id: uid('drink'), active: false, name: { zh: t('a.newDrink'), en: 'New drink' }, short: { zh: '新饮品', en: 'New' }, desc: { zh: '', en: '' }, preset: { tea: draft.teas[0].id, milk: draft.milks[0].id, sweet: 50, ice: 'normal', size: draft.sizes[0].id, tops: [] }, tags: [], price: null, badge: null });
+    if (sec === 'teas') draft.teas.push({ id: uid('tea'), name: { zh: t('a.newTea'), en: 'New tea' }, top: '#D9B48A', bottom: '#8A5A2B', price: 5.5, caffeine: 'mid', available: true });
+    if (sec === 'toppings') draft.toppings.push({ id: uid('top'), name: { zh: t('a.newTopping'), en: 'New topping' }, light: '#FFE0E6', dark: '#D46A86', r: 8, count: 12, zone: 'bottom', price: 0.75, allergens: [], available: true });
     drawEditor();
     setDirty(true);
   }
@@ -441,6 +493,113 @@ $('resetMenuBtn').addEventListener('click', async e => {
 });
 
 /* =========================================================
+   5. 优惠码与集点卡
+   ========================================================= */
+let coupons = [];
+let cpDirty = false;
+function setCpDirty(v) { cpDirty = v; $('cpState').textContent = v ? t('a.unsaved') : ''; $('cpBar').classList.toggle('dirty', v); }
+
+async function loadPromo() {
+  coupons = await api('GET', 'api/admin/coupons');
+  drawCoupons();
+  setCpDirty(false);
+  const L0 = CFG.loyalty;
+  $('loyHint').textContent = L0 && L0.enabled ? t('a.loyHint', { n: L0.stampsNeeded }) : t('a.loyOff');
+  $('loyForm').hidden = !(L0 && L0.enabled);
+}
+
+function drawCoupons() {
+  $('cpList').innerHTML = coupons.map((c, i) => {
+    const f = (field, value, label, attrs = '', cls = '') =>
+      `<label class="ed ${cls}"><span>${t(label)}</span><input class="field" data-cp="${i}" data-f="${field}" value="${esc(value ?? '')}" ${attrs}></label>`;
+    return `<div class="ed-row coupon ${c.active === false ? 'off' : ''}">
+      <div class="ed-line">
+        <label class="chk"><input type="checkbox" data-cp="${i}" data-f="active" ${c.active !== false ? 'checked' : ''}> ${t('a.cpActive')}</label>
+        ${f('code', c.code, 'a.cpCode', 'maxlength="20" style="text-transform:uppercase"', 'narrow')}
+        <label class="ed narrow"><span>${t('a.cpType')}</span><select class="field" data-cp="${i}" data-f="type">
+          <option value="amount" ${c.type === 'amount' ? 'selected' : ''}>${t('a.cpAmount')}</option>
+          <option value="percent" ${c.type === 'percent' ? 'selected' : ''}>${t('a.cpPercent')}</option></select></label>
+        ${f('value', c.value, 'a.cpValue', 'type="number" min="0" step="0.5"', 'narrow')}
+        ${f('minSubtotal', c.minSubtotal || '', 'a.cpMin', 'type="number" min="0" step="1"', 'narrow')}
+        ${f('maxUses', c.maxUses ?? '', 'a.cpMax', 'type="number" min="1" step="1"', 'narrow')}
+        ${f('expires', c.expires || '', 'a.cpExpires', 'type="date"', 'narrow')}
+        <button class="link-btn danger" data-cpdel="${i}">${t('a.delete')}</button>
+      </div>
+      <div class="ed-line">
+        ${f('label.zh', c.label?.zh, 'a.cpLabelZh', 'maxlength="40"', 'wide')}
+        ${f('label.en', c.label?.en, 'a.cpLabelEn', 'maxlength="60"', 'wide')}
+        <span class="cp-uses">${t('a.cpUses', { n: c.uses || 0 })}${c.maxUses ? ' / ' + c.maxUses : ''}</span>
+      </div>
+    </div>`;
+  }).join('') || `<p class="empty">${t('a.empty')}</p>`;
+}
+
+$('cpList').addEventListener('input', e => {
+  const el = e.target;
+  if (el.dataset.cp === undefined) return;
+  const c = coupons[Number(el.dataset.cp)];
+  const f = el.dataset.f;
+  let v = el.type === 'checkbox' ? el.checked : el.value;
+  if (f === 'code') v = v.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+  if (['value', 'minSubtotal'].includes(f)) v = v === '' ? 0 : Number(v);
+  if (f === 'maxUses') v = v === '' ? null : Number(v);
+  if (f === 'expires') v = v || null;
+  setPath(c, f, v);
+  if (f === 'active') el.closest('.ed-row').classList.toggle('off', !v);
+  setCpDirty(true);
+});
+$('cpList').addEventListener('change', e => { if (e.target.tagName === 'SELECT') e.target.dispatchEvent(new Event('input', { bubbles: true })); });
+$('cpList').addEventListener('click', e => {
+  const d = e.target.closest('[data-cpdel]');
+  if (!d) return;
+  coupons.splice(Number(d.dataset.cpdel), 1);
+  drawCoupons();
+  setCpDirty(true);
+});
+$('cpAdd').addEventListener('click', () => {
+  coupons.push({ code: t('a.newCoupon') + (coupons.length + 1), type: 'amount', value: 1, minSubtotal: 0, active: false, maxUses: null, expires: null, label: { zh: '', en: '' }, uses: 0 });
+  drawCoupons();
+  setCpDirty(true);
+});
+$('cpSave').addEventListener('click', async () => {
+  try {
+    coupons = await api('PUT', 'api/admin/coupons', coupons);
+    drawCoupons();
+    setCpDirty(false);
+    toast(t('a.cpSaved'));
+  } catch (e) { toast(t('a.saveFail', { e: e.message })); }
+});
+
+function drawLoyalty(c) {
+  const n = c.needed || 10;
+  const box = $('loyResult');
+  const dots = Array.from({ length: n }, (_, k) => `<span class="stamp ${k < Math.min(c.stamps, n) ? 'on' : ''}">${k < c.stamps ? '★' : ''}</span>`).join('');
+  box.innerHTML = `<p class="loy-phone">${esc(c.phone)}</p>
+    <div class="stamps">${dots}</div>
+    <p class="hint">${t('a.loyStat', { s: c.stamps, e: c.earned, r: c.redeemed })}</p>
+    <div class="loy-btns">
+      <button class="btn btn-sm ghost" data-delta="1">${t('a.addStamp', { n: 1 })}</button>
+      <button class="btn btn-sm ghost" data-delta="5">${t('a.addStamp', { n: 5 })}</button>
+      <button class="btn btn-sm ghost" data-delta="-1" ${c.stamps < 1 ? 'disabled' : ''}>${t('a.removeStamp')}</button>
+      <button class="btn btn-sm" data-delta="${-n}" ${c.stamps < n ? 'disabled' : ''}>${t('a.redeemNow', { n })}</button>
+    </div>`;
+  box.hidden = false;
+}
+$('loyForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  try { drawLoyalty(await api('GET', 'api/admin/loyalty?phone=' + encodeURIComponent($('loyPhone').value))); }
+  catch (err) { toast(t('a.loyBad')); }
+});
+$('loyResult').addEventListener('click', async e => {
+  const b = e.target.closest('[data-delta]');
+  if (!b) return;
+  try {
+    drawLoyalty(await api('POST', 'api/admin/loyalty', { phone: $('loyPhone').value, delta: Number(b.dataset.delta) }));
+    toast(t('a.loyDone'));
+  } catch (err) { toast(t('a.loyBad')); }
+});
+
+/* =========================================================
    4. 桌号二维码
    ========================================================= */
 $('qrMake').addEventListener('click', async () => {
@@ -461,7 +620,7 @@ $('qrPrint').addEventListener('click', () => window.print());
    ========================================================= */
 document.querySelectorAll('.a-tabs [role=tab]').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('.a-tabs [role=tab]').forEach(x => x.setAttribute('aria-selected', x === b));
-  ['orders', 'menu', 'qr'].forEach(k => { $('tab-' + k).hidden = k !== b.dataset.tab; });
+  ['orders', 'menu', 'promo', 'qr'].forEach(k => { $('tab-' + k).hidden = k !== b.dataset.tab; });
 }));
 $('alertBtn').addEventListener('click', () => {
   alertOn = !alertOn;
@@ -473,9 +632,11 @@ $('aLangBtn').addEventListener('click', () => {
   I18N.set(I18N.lang === 'zh' ? 'en' : 'zh');
   renderBoard();
   if (!dirty) renderMenuEditor(); else drawEditor();
+  drawCoupons();
+  if (!$('loyResult').hidden && $('loyPhone').value) $('loyForm').requestSubmit();
   setLive($('liveDot').dataset.state === 'on');
   $('qrHint').textContent = t('a.qrHint', { url: location.origin + '/?table=1' });
 });
-window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+window.addEventListener('beforeunload', e => { if (dirty || cpDirty) { e.preventDefault(); e.returnValue = ''; } });
 
 boot();

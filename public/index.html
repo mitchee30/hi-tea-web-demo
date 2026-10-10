@@ -9,6 +9,14 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<!-- PWA：让网站可以"安装"到手机主屏幕 -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Hi Tea">
+<meta name="theme-color" content="#F4EEF8">
 </head>
 <body class="loading">
 
@@ -26,6 +34,7 @@
   </nav>
   <div class="tools">
     <a class="order-chip" id="orderChip" hidden></a>
+    <button class="icon-btn install-btn" id="installBtn" hidden><span aria-hidden="true">⤓</span><span class="tool-label" data-i18n="pwa.install"></span></button>
     <button class="icon-btn" id="langBtn" data-i18n-label="tool.langLabel"><span data-i18n="tool.lang"></span></button>
     <button class="icon-btn" id="musicBtn" aria-pressed="false">
       <span aria-hidden="true">♪</span><span class="tool-label" data-i18n="tool.music"></span>
@@ -71,6 +80,53 @@
         </div>
       </a>
     </div>
+
+    <!-- 新品与限定 -->
+    <div class="featured" id="featured" hidden>
+      <h2 data-i18n="home.featured"></h2>
+      <div class="featured-list" id="featuredList"></div>
+    </div>
+
+    <!-- 店铺信息 + 集点卡 + 安装 App -->
+    <div class="info-grid">
+      <section class="store-card" aria-labelledby="store-title">
+        <h2 id="store-title" data-i18n="store.title"></h2>
+        <p class="open-pill" id="openPill"></p>
+        <dl class="store-dl">
+          <div><dt data-i18n="store.address"></dt><dd><span id="storeAddr"></span> <a id="storeMapLink" target="_blank" rel="noopener" data-i18n="store.directions"></a></dd></div>
+          <div><dt data-i18n="store.hours"></dt><dd id="storeHours"></dd></div>
+          <div><dt data-i18n="store.phone"></dt><dd><a id="storePhone"></a></dd></div>
+        </dl>
+        <iframe class="store-map" id="storeMap" title="Map" loading="lazy" referrerpolicy="no-referrer"></iframe>
+      </section>
+      <div class="side-cards">
+        <a class="loy-promo" href="#/rewards" id="loyPromo">
+          <span class="stamps-mini" aria-hidden="true">●●●●●○○○○○</span>
+          <strong data-i18n="loy.title"></strong>
+          <span id="loyPromoText"></span>
+          <span class="entry-go" data-i18n="loy.link"></span>
+        </a>
+        <div class="install-card" id="installCard" hidden>
+          <img src="icons/icon-192.png" alt="" width="56" height="56">
+          <div><p id="installWhy"></p><p class="hint" id="iosTip" data-i18n="pwa.iosTip" hidden></p>
+          <button class="btn btn-sm" id="installCardBtn" data-i18n="pwa.install" hidden></button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 集点卡 ========== -->
+  <section class="view view-rewards" id="view-rewards" aria-labelledby="rw-title" hidden>
+    <div class="view-head">
+      <a class="back" href="#/" data-i18n="back"></a>
+      <h1 id="rw-title" tabindex="-1" data-i18n="loy.title"></h1>
+      <p class="view-sub" id="rwSub"></p>
+    </div>
+    <form class="rw-form" id="rwForm">
+      <input class="field" id="rwPhone" type="tel" autocomplete="tel" maxlength="20" data-i18n-ph="loy.phonePh">
+      <button class="btn" type="submit" data-i18n="loy.check"></button>
+    </form>
+    <div class="stamp-card" id="rwCard" hidden></div>
   </section>
 
   <!-- ========== 自己调一杯 ========== -->
@@ -84,6 +140,7 @@
         <div class="cup-box" id="diyCup"></div>
         <div class="stage-info">
           <p class="summary" id="summary" aria-live="polite"></p>
+          <p class="traits" id="diyTraits"></p>
           <div class="price-row">
             <span class="price" id="price">$0.00</span>
             <button class="btn" id="addDiyBtn" data-i18n="diy.add"></button>
@@ -113,6 +170,7 @@
       <p class="view-sub" data-i18n="menu.sub"></p>
     </div>
     <ul class="menu-grid" id="menuGrid"></ul>
+    <p class="hint allergen-note" id="allergenNote"></p>
   </section>
 
   <!-- ========== 今天喝什么 ========== -->
@@ -167,14 +225,25 @@
         <fieldset class="co-block" id="coTimeBlock">
           <legend data-i18n="co.time"></legend>
           <select id="coTime" class="field"></select>
+          <p class="hint eta" id="coEta" hidden></p>
         </fieldset>
         <fieldset class="co-block">
           <label class="lbl" for="coName"><span data-i18n="co.name"></span></label>
           <input class="field" id="coName" autocomplete="given-name" maxlength="30" data-i18n-ph="co.namePh">
           <label class="lbl" for="coPhone" data-i18n="co.phone"></label>
           <input class="field" id="coPhone" type="tel" autocomplete="tel" maxlength="20">
+          <div class="co-loyalty" id="coLoyalty" hidden></div>
           <label class="lbl" for="coNote" data-i18n="co.note"></label>
           <textarea class="field" id="coNote" rows="2" maxlength="140" data-i18n-ph="co.notePh"></textarea>
+        </fieldset>
+        <fieldset class="co-block">
+          <legend data-i18n="co.coupon"></legend>
+          <div class="coupon-row" id="couponRow">
+            <input class="field" id="coCoupon" maxlength="20" autocapitalize="characters" data-i18n-ph="co.couponPh">
+            <button class="btn ghost btn-sm" type="button" id="coCouponBtn" data-i18n="co.apply"></button>
+          </div>
+          <p class="coupon-on" id="couponOn" hidden></p>
+          <p class="form-error small" id="couponErr" hidden></p>
         </fieldset>
         <fieldset class="co-block">
           <legend data-i18n="co.pay"></legend>
@@ -187,6 +256,8 @@
         <ul class="co-items" id="coItems"></ul>
         <dl class="co-totals">
           <div><dt data-i18n="co.subtotal"></dt><dd id="coSub"></dd></div>
+          <div class="disc" id="coRewardRow" hidden><dt data-i18n="co.reward"></dt><dd id="coReward"></dd></div>
+          <div class="disc" id="coCouponRow" hidden><dt id="coCouponLabel"></dt><dd id="coCouponAmt"></dd></div>
           <div><dt id="coTaxLabel"></dt><dd id="coTax"></dd></div>
           <div class="grand"><dt data-i18n="co.total"></dt><dd id="coTotal"></dd></div>
         </dl>
@@ -203,6 +274,7 @@
       <h1 class="ord-number" id="ord-title" tabindex="-1"></h1>
       <p class="ord-status" id="ordStatus" aria-live="polite"></p>
       <ol class="ord-steps" id="ordSteps"></ol>
+      <p class="ord-eta" id="ordEta" hidden></p>
       <div class="ord-banner" id="ordBanner" hidden></div>
       <div class="ord-pay" id="ordPay" hidden>
         <p id="ordPayText"></p>
@@ -214,8 +286,10 @@
       <dl class="ord-info" id="ordInfo"></dl>
       <ul class="co-items" id="ordItems"></ul>
       <dl class="co-totals" id="ordTotals"></dl>
+      <p class="ord-stamps" id="ordStamps" hidden></p>
       <div class="ord-actions">
         <button class="link-btn" id="ordNotify" data-i18n="ord.notify" hidden></button>
+        <button class="btn" id="ordReorder" data-i18n="reorder"></button>
         <a class="btn ghost" href="#/menu" data-i18n="ord.again"></a>
       </div>
       <p class="ord-live" id="ordLive" data-i18n="ord.live"></p>
@@ -233,6 +307,10 @@
     <button class="icon-btn close" id="cartClose" aria-label="Close">✕</button>
   </div>
   <ul class="cart-list" id="cartList"></ul>
+  <div class="recent" id="recentBox" hidden>
+    <h3 data-i18n="recent"></h3>
+    <ul id="recentList"></ul>
+  </div>
   <div class="cart-empty" id="cartEmpty">
     <p data-i18n="cart.empty"></p>
     <a class="btn ghost" href="#/menu" id="cartToMenu" data-i18n="cart.toMenu"></a>

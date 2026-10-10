@@ -326,6 +326,105 @@ textarea.field { resize: vertical; }
 .ord-live { font-size: 13px; color: var(--ink-soft); margin: 16px 0 0; }
 
 /* ========== 10. 手机布局 ========== */
+
+/* ========== 新品、店铺信息、集点卡、优惠码、安装 App ========== */
+.featured { margin-top: 28px; }
+.featured h2 { font-size: 26px; margin: 0 0 12px; }
+.featured-list { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x mandatory; }
+.feat-chip {
+  flex: 0 0 auto; scroll-snap-align: start; text-decoration: none;
+  display: flex; align-items: center; gap: 10px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--pill); padding: 10px 18px 10px 10px;
+  transition: transform .2s, box-shadow .2s;
+}
+.feat-chip:hover { transform: translateY(-2px); box-shadow: 0 10px 22px -16px rgba(43,29,63,.5); }
+.feat-chip span:last-child { color: var(--ink-soft); font-size: 14px; }
+.badge-tag {
+  display: inline-block; font-size: 12px; font-weight: 700; line-height: 1; letter-spacing: .5px;
+  padding: 5px 9px; border-radius: var(--pill); color: #fff; background: var(--ink); white-space: nowrap;
+}
+.badge-tag.new { background: #6E9A5B; }
+.badge-tag.limited { background: #D9304F; }
+.badge-tag.hot { background: var(--accent); }
+.menu-cup { position: relative; }
+.menu-cup > .badge-tag { position: absolute; top: 12px; left: 12px; z-index: 2; }
+
+.traits { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0 0; }
+.trait { font-size: 12px; line-height: 1.2; padding: 3px 8px; border-radius: var(--pill); background: var(--bg); color: var(--ink-soft); border: 1px solid var(--line); }
+.trait.caf-none { background: #E6F2DF; color: #3C6A2C; border-color: #CFE4C4; }
+.trait.caf-low { background: #FFF6D8; color: #7A5A06; border-color: #F1E1A6; }
+.trait.caf-mid { background: #FFE8CF; color: #8A4F17; border-color: #F5CFA2; }
+.trait.caf-high { background: #FDE2D5; color: #8A2F0F; border-color: #F6C3AC; }
+.trait.alg { background: #fff; color: var(--ink); }
+.trait.swap { background: var(--soft-1); color: var(--ink); border-style: dashed; }
+.allergen-note { margin-top: 20px; max-width: 760px; }
+
+.info-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; margin: 28px 0 40px; }
+.store-card { background: var(--panel); border-radius: var(--radius-lg); padding: 22px 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 20px; align-content: start; }
+.store-card h2 { font-size: 26px; margin: 0; grid-column: 1; }
+.open-pill { grid-column: 1; justify-self: start; margin: 0 0 6px; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: var(--pill); background: #FDE2D5; color: #8A2F0F; }
+.open-pill[data-open="true"] { background: #E6F2DF; color: #3C6A2C; }
+.open-pill::before { content: '●'; margin-right: 6px; }
+.store-dl { grid-column: 1; margin: 0; display: grid; gap: 10px; }
+.store-dl dt { font-size: 12px; color: var(--ink-soft); }
+.store-dl dd { margin: 0; }
+.store-dl a { color: var(--accent); font-weight: 700; }
+.store-map { grid-column: 2; grid-row: 1 / span 3; width: 100%; height: 100%; min-height: 220px; border: 0; border-radius: 18px; background: var(--soft-1); }
+.side-cards { display: grid; gap: 16px; align-content: start; }
+.loy-promo {
+  display: flex; flex-direction: column; gap: 4px; text-decoration: none;
+  background: linear-gradient(135deg, var(--soft-2), var(--soft-3)); border-radius: var(--radius-lg); padding: 22px 24px;
+  transition: transform .2s;
+}
+.loy-promo:hover { transform: translateY(-2px); }
+.loy-promo strong { font-family: "ZCOOL KuaiLe", sans-serif; font-weight: 400; font-size: 26px; }
+.loy-promo .entry-go { margin-top: 8px; }
+.stamps-mini { color: var(--accent); letter-spacing: 3px; font-size: 14px; }
+.install-card { display: flex; gap: 14px; align-items: center; background: var(--panel); border-radius: var(--radius-lg); padding: 18px 20px; }
+.install-card img { border-radius: 14px; flex: 0 0 auto; }
+.install-card p { margin: 0 0 8px; }
+.install-card .hint { margin: 0 0 4px; }
+
+.view-rewards { max-width: 560px; }
+.rw-form { display: flex; gap: 10px; margin: 20px 0; }
+.rw-form .field { flex: 1; margin: 0; }
+.stamp-card { background: var(--panel); border-radius: var(--radius-lg); padding: 22px; text-align: center; }
+.stamp-count { margin: 0 0 12px; font-weight: 700; }
+.stamps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; max-width: 320px; margin: 0 auto; }
+.stamp {
+  aspect-ratio: 1; border-radius: 50%; border: 2px dashed var(--line);
+  display: flex; align-items: center; justify-content: center; font-size: 20px; color: #fff;
+}
+.stamp.on { border: 0; background: radial-gradient(circle at 35% 30%, #C2742F, var(--accent-dark)); animation: stamp-in .35s ease-out backwards; }
+.stamp.on:nth-child(2) { animation-delay: .04s } .stamp.on:nth-child(3) { animation-delay: .08s } .stamp.on:nth-child(4) { animation-delay: .12s }
+.stamp.on:nth-child(5) { animation-delay: .16s } .stamp.on:nth-child(6) { animation-delay: .2s } .stamp.on:nth-child(7) { animation-delay: .24s }
+.stamp.on:nth-child(8) { animation-delay: .28s } .stamp.on:nth-child(9) { animation-delay: .32s } .stamp.on:nth-child(10) { animation-delay: .36s }
+@keyframes stamp-in { from { transform: scale(1.6) rotate(-20deg); opacity: 0; } }
+.stamp-msg { margin: 12px 0 0; color: var(--ink-soft); }
+
+.co-loyalty { background: var(--soft-2); border-radius: 18px; padding: 14px 16px; margin: 10px 0 4px; }
+.co-loyalty .stamp-card, .co-loyalty .stamp-count { text-align: left; }
+.co-loyalty .stamps { grid-template-columns: repeat(10, 1fr); gap: 4px; max-width: none; }
+.co-loyalty .stamp { font-size: 11px; border-width: 1.5px; }
+.co-loyalty .stamp-count { margin-bottom: 8px; font-size: 14px; }
+.co-loyalty .stamp-msg { font-size: 13px; margin-top: 8px; }
+.co-loyalty .hint { margin-top: 6px; }
+.use-reward { display: flex; gap: 8px; align-items: center; margin-top: 10px; font-weight: 700; cursor: pointer; }
+.use-reward input { width: 18px; height: 18px; accent-color: var(--accent); }
+.coupon-row { display: flex; gap: 8px; }
+.coupon-row .field { flex: 1; margin: 0; text-transform: uppercase; }
+.coupon-on, .co-block .form-error.small { clear: both; }
+.coupon-on { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0; }
+.coupon-chip { background: #E6F2DF; color: #3C6A2C; border-radius: var(--pill); padding: 6px 12px; font-weight: 700; font-size: 14px; }
+.form-error.small { font-size: 13px; padding: 8px 12px; margin: 8px 0 0; }
+.co-totals .disc { color: #3C6A2C; }
+.ord-eta { background: var(--soft-1); border-radius: 14px; padding: 10px 14px; margin: 0 0 16px; font-weight: 700; }
+.ord-stamps { background: var(--soft-2); border-radius: 14px; padding: 10px 14px; margin: 0 0 16px; }
+.recent { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 14px; }
+.recent ul { list-style: none; margin: 0; padding: 0; }
+.recent li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 0; font-size: 14px; }
+.install-btn { border-color: var(--accent); color: var(--accent); }
+
 @media (max-width: 760px) {
   :root { --topbar-h: 56px; --tabbar-h: 64px; }
   /* 注意：父元素有 backdrop-filter 时，里面 position: fixed 的元素会相对父元素定位，
@@ -384,6 +483,11 @@ textarea.field { resize: vertical; }
   .order-chip { font-size: 12px; padding: 3px 8px; }
   #langBtn { padding: 5px 9px; }
   .icon-btn, .cart-btn { white-space: nowrap; padding: 5px 9px; }
+  .info-grid { grid-template-columns: 1fr; margin-bottom: 24px; }
+  .store-card { grid-template-columns: 1fr; padding: 18px; }
+  .store-map { grid-column: 1; grid-row: auto; min-height: 180px; }
+  .co-loyalty .stamps { grid-template-columns: repeat(5, 1fr); max-width: 220px; gap: 6px; }
+  .co-loyalty .stamp { font-size: 14px; }
   .tools { gap: 6px; }
 }
 @media (max-width: 480px) {

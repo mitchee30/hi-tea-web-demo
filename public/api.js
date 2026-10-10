@@ -48,6 +48,8 @@ const Api = (() => {
       config = {
         shop: raw.shop, theme: raw.theme, features: raw.features,
         hours: raw.hours, payments: { store: true, online: false }, menu: raw.menu,
+        loyalty: raw.loyalty && raw.loyalty.enabled ? { enabled: true, stampsNeeded: raw.loyalty.stampsNeeded } : { enabled: false },
+        coupons: raw.coupons || [],
       };
       mode = 'demo';
     }
@@ -68,18 +70,53 @@ const Api = (() => {
     return { open: true, slots: Array.from({ length: 12 }, (_, i) => new Date(first + i * step).toISOString()) };
   }
 
+  /* ---------- 等待时间、集点卡、优惠码 ---------- */
+  async function wait(drinks) {
+    if (mode === 'live') return request('GET', `api/wait?drinks=${drinks}`);
+    return { queueDrinks: 3, minutes: Math.max(config.hours.prepMinutes || 10, (3 + drinks) * (config.hours.minutesPerDrink || 2) + 3) };
+  }
+
+  const normPhone = p => String(p || '').replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '');
+  const demoStamps = () => { try { return JSON.parse(localStorage.getItem('hitea-demo-stamps') || '{}'); } catch (e) { return {}; } };
+  const saveStamps = v => { try { localStorage.setItem('hitea-demo-stamps', JSON.stringify(v)); } catch (e) { /* 忽略 */ } };
+
+  async function loyalty(phone) {
+    if (mode === 'live') return request('GET', `api/loyalty?phone=${encodeURIComponent(phone)}`);
+    const p = normPhone(phone);
+    if (p.length < 7) { const err = new Error('bad_phone'); err.code = 'bad_phone'; throw err; }
+    return { enabled: config.loyalty.enabled, stamps: demoStamps()[p] || 0, needed: config.loyalty.stampsNeeded };
+  }
+
+  async function checkCoupon(code, lines, menuNow, useReward) {
+    if (mode === 'live') return request('POST', 'api/coupons/check', { code, lines, useReward });
+    const c = (config.coupons || []).find(x => x.code.toUpperCase() === String(code).trim().toUpperCase());
+    if (!c) { const err = new Error('coupon_invalid'); err.code = 'coupon_invalid'; throw err; }
+    const d = Pricing.discounts({ lines, menu: menuNow, coupon: c, useReward });
+    if (d.error) { const err = new Error(d.error); err.code = d.error; throw err; }
+    return { code: c.code, label: c.label, off: d.coupon, minSubtotal: c.minSubtotal };
+  }
+
   /* ---------- 下单 ---------- */
   async function createOrder(body, menuNow) {
     if (mode === 'live') return request('POST', 'api/orders', body);
-    // 演示模式：在浏览器里算好价格，存在 localStorage
+    // 演示模式：在浏览器里算好价格和优惠，存在 localStorage
     const lines = body.lines.map(l => ({ ...l, unit: Pricing.recipeCents(l.recipe, menuNow, l.drinkId) }));
-    const tot = Pricing.totals(lines, menuNow, config.shop.taxRate);
+    const coupon = body.couponCode ? (config.coupons || []).find(x => x.code.toUpperCase() === body.couponCode.toUpperCase()) : null;
+    const phone = normPhone(body.phone);
+    const stamps = demoStamps();
+    const useReward = !!body.useReward && (stamps[phone] || 0) >= config.loyalty.stampsNeeded;
+    const d = Pricing.discounts({ lines, menu: menuNow, coupon, useReward });
+    const tot = Pricing.totals(lines, menuNow, config.shop.taxRate, d.reward + (d.error ? 0 : d.coupon));
+    if (useReward) { stamps[phone] -= config.loyalty.stampsNeeded; saveStamps(stamps); }
+    const qty = lines.reduce((s, l) => s + l.qty, 0);
     const id = 'demo-' + Date.now().toString(36);
     const order = {
       id, token: 'demo', number: String(Math.floor(1 + Math.random() * 998)).padStart(3, '0'),
       type: body.type, table: body.table || null, pickupAt: body.type === 'table' ? null : body.pickupAt, name: body.name,
       items: lines.map(l => ({ drinkId: l.drinkId, name: l.drinkId ? (menuNow.drinks.find(d => d.id === l.drinkId) || {}).name : null, recipe: l.recipe, qty: l.qty, unit: l.unit })),
-      ...tot, payment: 'store', paid: false, createdAt: new Date().toISOString(),
+      ...tot, coupon: coupon && !d.error ? coupon.code : null, rewardUsed: useReward,
+      phone, stamps: config.loyalty.enabled && phone.length >= 7 ? qty - (useReward ? 1 : 0) : 0, stamped: false,
+      payment: 'store', paid: false, createdAt: new Date().toISOString(),
     };
     const all = demoOrders();
     all[id] = order;
@@ -94,9 +131,17 @@ const Api = (() => {
     if (mode === 'live') return request('GET', `api/orders/${encodeURIComponent(id)}?token=${encodeURIComponent(token)}`);
     const o = demoOrders()[id];
     if (!o) { const err = new Error('not_found'); err.code = 'not_found'; throw err; }
-    // 演示模式：下单 6 秒后"制作中"，15 秒后"可以取餐"
+    // 演示模式：下单 6 秒后"制作中"，15 秒后"可以取餐"，同时把印章加上
     const age = (Date.now() - new Date(o.createdAt).getTime()) / 1000;
-    return { ...o, status: age < 6 ? 'new' : age < 15 ? 'making' : 'ready' };
+    const status = age < 6 ? 'new' : age < 15 ? 'making' : 'ready';
+    if (status === 'ready' && o.stamps > 0 && !o.stamped) {
+      const all = demoOrders(); all[id].stamped = true; saveDemo(all);
+      const st = demoStamps(); st[o.phone] = (st[o.phone] || 0) + o.stamps; saveStamps(st);
+      o.stamped = true;
+    }
+    const ahead = status === 'new' ? 3 : 0;
+    const qty = o.items.reduce((s, it) => s + it.qty, 0);
+    return { ...o, phone: undefined, status, ahead, etaMinutes: status === 'ready' ? 0 : Math.max(1, (ahead + qty) * (config.hours.minutesPerDrink || 2)) };
   }
 
   const pay = (id, token) => request('POST', `api/orders/${encodeURIComponent(id)}/pay`, { token });
@@ -134,7 +179,7 @@ const Api = (() => {
   const emit = (type, data) => listeners[type].forEach(fn => fn(data));
 
   return {
-    init, menu, slots, createOrder, getOrder, pay, payInStore, track, on,
+    init, menu, slots, wait, loyalty, checkCoupon, createOrder, getOrder, pay, payInStore, track, on, normPhone,
     get mode() { return mode; }, get config() { return config; },
   };
 })();

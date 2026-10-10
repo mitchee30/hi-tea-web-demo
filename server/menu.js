@@ -9,6 +9,10 @@ const isId = v => typeof v === 'string' && /^[a-z0-9-]{1,32}$/.test(v);
 const text = (v, max = 60) => typeof v === 'string' && v.trim().length > 0 && v.length <= max;
 const name2 = (v, max) => v && text(v.zh, max) && text(v.en, max);
 const price = v => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 100;
+const ALLERGENS = ['dairy', 'egg', 'soy', 'gluten', 'nuts', 'sesame'];
+const allergens = v => (Array.isArray(v) ? [...new Set(v.filter(a => ALLERGENS.includes(a)))] : []);
+const CAFFEINE = ['none', 'low', 'mid', 'high'];
+const BADGES = ['new', 'limited', 'hot'];
 
 function fail(msg) { const e = new Error(msg); e.status = 400; throw e; }
 
@@ -28,7 +32,8 @@ function validateMenu(m, base) {
   if (!Array.isArray(m.teas) || m.teas.length < 1 || m.teas.length > 30) fail('teas');
   out.teas = m.teas.map(t => {
     if (!isId(t.id) || !name2(t.name, 30) || !price(t.price) || !isHex(t.top) || !isHex(t.bottom)) fail('tea ' + t.id);
-    return { id: t.id, name: { zh: t.name.zh.trim(), en: t.name.en.trim() }, top: t.top, bottom: t.bottom, price: t.price, available: t.available !== false };
+    return { id: t.id, name: { zh: t.name.zh.trim(), en: t.name.en.trim() }, top: t.top, bottom: t.bottom, price: t.price,
+      caffeine: CAFFEINE.includes(t.caffeine) ? t.caffeine : 'mid', available: t.available !== false };
   });
   uniqueIds(out.teas, 'teas');
 
@@ -36,7 +41,7 @@ function validateMenu(m, base) {
   out.milks = m.milks.map(x => {
     if (!isId(x.id) || !name2(x.name, 30) || !price(x.price)) fail('milk ' + x.id);
     const mixv = typeof x.mix === 'number' ? Math.max(0, Math.min(0.8, x.mix)) : 0.4;
-    return { id: x.id, name: { zh: x.name.zh.trim(), en: x.name.en.trim() }, mix: mixv, price: x.price, available: x.available !== false };
+    return { id: x.id, name: { zh: x.name.zh.trim(), en: x.name.en.trim() }, mix: mixv, price: x.price, allergens: allergens(x.allergens), available: x.available !== false };
   });
   uniqueIds(out.milks, 'milks');
 
@@ -55,7 +60,7 @@ function validateMenu(m, base) {
       id: t.id, name: { zh: t.name.zh.trim(), en: t.name.en.trim() },
       light: isHex(t.light) ? t.light : '#DDDDDD', dark: isHex(t.dark) ? t.dark : '#555555',
       r: Math.max(0, Math.min(24, Number(t.r) || 8)), count: Math.max(0, Math.min(24, Number(t.count) || 12)),
-      zone, price: t.price, available: t.available !== false,
+      zone, price: t.price, allergens: allergens(t.allergens), available: t.available !== false,
     };
   });
   uniqueIds(out.toppings, 'toppings');
@@ -72,7 +77,7 @@ function validateMenu(m, base) {
     const override = d.price === null || d.price === undefined || d.price === '' ? null : d.price;
     if (override !== null && !price(override)) fail('drink price ' + d.id);
     return {
-      id: d.id, active: d.active !== false,
+      id: d.id, active: d.active !== false, badge: BADGES.includes(d.badge) ? d.badge : null,
       name: { zh: d.name.zh.trim(), en: d.name.en.trim() },
       short: d.short ? { zh: d.short.zh.trim(), en: d.short.en.trim() } : { zh: d.name.zh.trim().slice(0, 6), en: d.name.en.trim().slice(0, 12) },
       desc: descOk ? { zh: d.desc.zh.trim(), en: d.desc.en.trim() } : { zh: '', en: '' },
@@ -85,4 +90,27 @@ function validateMenu(m, base) {
   return out;
 }
 
-module.exports = { validateMenu };
+/* 优惠码检查 */
+function validateCoupons(list) {
+  if (!Array.isArray(list) || list.length > 50) fail('coupons');
+  const out = list.map(c => {
+    const code = String(c.code || '').trim().toUpperCase();
+    if (!/^[A-Z0-9-]{3,20}$/.test(code)) fail('coupon code ' + c.code);
+    if (!['percent', 'amount'].includes(c.type)) fail('coupon type ' + code);
+    const value = Number(c.value);
+    if (!Number.isFinite(value) || value <= 0 || (c.type === 'percent' && value > 100) || (c.type === 'amount' && value > 100)) fail('coupon value ' + code);
+    const minSubtotal = Number(c.minSubtotal || 0);
+    if (!Number.isFinite(minSubtotal) || minSubtotal < 0 || minSubtotal > 500) fail('coupon min ' + code);
+    const maxUses = c.maxUses === null || c.maxUses === '' || c.maxUses === undefined ? null : Number(c.maxUses);
+    if (maxUses !== null && (!Number.isInteger(maxUses) || maxUses < 1 || maxUses > 100000)) fail('coupon maxUses ' + code);
+    const expires = c.expires ? String(c.expires) : null;
+    if (expires && !/^\d{4}-\d{2}-\d{2}$/.test(expires)) fail('coupon expires ' + code);
+    const label = c.label && typeof c.label.zh === 'string' && typeof c.label.en === 'string'
+      ? { zh: c.label.zh.trim().slice(0, 40), en: c.label.en.trim().slice(0, 60) } : { zh: '', en: '' };
+    return { code, type: c.type, value, minSubtotal, active: c.active !== false, maxUses, expires, label, uses: Math.max(0, Number(c.uses) || 0) };
+  });
+  if (new Set(out.map(c => c.code)).size !== out.length) fail('coupons: duplicate code');
+  return out;
+}
+
+module.exports = { validateMenu, validateCoupons };
