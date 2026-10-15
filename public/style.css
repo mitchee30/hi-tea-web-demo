@@ -516,16 +516,16 @@ body { overflow-x: clip; }   /* 全宽区块用了 100vw，防止出现横向滚
 .story-nav button.on span, .story-nav button:hover span { opacity: 1; }
 
 .lineup {
-  position: relative; height: 320vh; width: 100vw; margin: 0 0 40px calc(50% - 50vw);
+  position: relative; width: 100vw; margin: 0 0 40px calc(50% - 50vw);
   background: var(--bg-2);
 }
 .lineup-stage {
-  position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden;
-  display: flex; flex-direction: column; justify-content: center; padding: var(--head-h) 0 16px;
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; justify-content: center; padding: 96px 0 72px;
 }
 .lu-bg {
   position: absolute; left: 50%; top: 54%; margin: 0; white-space: nowrap; pointer-events: none;
-  transform: translate(-50%, -50%) scale(calc(1 + var(--lp, 0) * .18));
+  transform: translate(-50%, -50%);
   font-family: var(--display); font-weight: 900; text-transform: uppercase; line-height: 1;
   font-size: clamp(100px, 24vw, 380px); color: var(--ink); opacity: .07;
 }
@@ -535,8 +535,26 @@ body { overflow-x: clip; }   /* 全宽区块用了 100vw，防止出现横向滚
 }
 .lu-head h2 { font-family: var(--display); font-weight: 900; text-transform: uppercase; font-size: clamp(48px, 6vw, 92px); line-height: .95; margin: 0; }
 .lu-head p { max-width: 38ch; color: var(--ink-soft); margin: 0; }
-.lu-viewport { position: relative; padding: 0 max(24px, calc((100vw - 1180px) / 2)); }
-.lu-row { display: flex; gap: 20px; width: max-content; will-change: transform; }
+.lu-viewport {
+  --pad: max(24px, calc((100vw - 1180px) / 2));
+  position: relative; overflow-x: auto; overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory; scroll-padding-left: var(--pad); scrollbar-width: none;
+  padding: 8px var(--pad) 28px; cursor: grab;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 calc(var(--pad) * .6), #000 calc(100% - 48px), transparent 100%);
+          mask-image: linear-gradient(90deg, transparent 0, #000 calc(var(--pad) * .6), #000 calc(100% - 48px), transparent 100%);
+}
+.lu-viewport::-webkit-scrollbar { display: none; }
+.lu-viewport.dragging { cursor: grabbing; scroll-snap-type: none; user-select: none; }
+.lu-viewport.dragging a { pointer-events: none; }
+.lu-row { display: flex; gap: 20px; width: max-content; }
+.lu-row > * { scroll-snap-align: start; flex: 0 0 auto; }
+.lu-arrows { display: flex; gap: 8px; margin-left: auto; }
+.lu-arrow {
+  width: 48px; height: 48px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+  font-size: 20px; display: grid; place-items: center; transition: background .2s, border-color .2s, opacity .2s;
+}
+.lu-arrow:hover:not(:disabled) { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.lu-arrow:disabled { opacity: .3; cursor: default; }
 .lu-card {
   width: 260px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 16px;
   display: flex; flex-direction: column; box-shadow: 0 30px 50px -36px rgba(0,0,0,.8);
@@ -564,16 +582,15 @@ body { overflow-x: clip; }   /* 全宽区块用了 100vw，防止出现横向滚
 .lu-cta span { font-size: 28px; }
 
 /* 减少动态效果：不固定、不滚动动画，直接显示 */
-.story.is-static, .lineup.is-static { height: auto; }
-.is-static .story-stage, .is-static .lineup-stage { position: relative; height: auto; min-height: 100svh; }
-.lineup.is-static .lu-row { flex-wrap: wrap; width: auto; }
-.lineup.is-static .lineup-stage { padding: 64px 0; }
+.story.is-static { height: auto; }
+.is-static .story-stage { position: relative; height: auto; min-height: 100svh; }
+
 
 
 /* ========== 滚动大片（film.js）：视频帧跟着滚动播放 ========== */
 .film {
   --film-bg: #120A1C; --pad: max(24px, calc((100vw - 1180px) / 2));
-  position: relative; height: 600vh; width: 100vw; margin: 0 0 0 calc(50% - 50vw);
+  position: relative; height: 260vh; width: 100vw; margin: 0 0 0 calc(50% - 50vw);
   background: var(--film-bg); color: #fff;
 }
 .film-stage { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; background: var(--film-bg); }
@@ -587,14 +604,14 @@ body { overflow-x: clip; }   /* 全宽区块用了 100vw，防止出现横向滚
 }
 .film-beats { position: absolute; inset: 0; pointer-events: none; }
 .film-beat {
-  position: absolute; top: var(--head-h); bottom: 0; left: var(--pad); max-width: min(520px, 42vw);
+  position: absolute; top: var(--head-h); bottom: 0; left: max(24px, 5vw); max-width: min(520px, 42vw);
   display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
   opacity: 0; will-change: opacity, transform;
 }
 .film-beat.right { left: auto; right: var(--pad); text-align: right; align-items: flex-end; }
 .film-beat.center { left: 0; right: 0; max-width: none; text-align: center; align-items: center; }
 .film .st-big { font-size: clamp(48px, 6.2vw, 100px); }
-.film-beat { max-width: min(460px, 34vw); }
+.film-beat { max-width: min(440px, 30vw); }
 .film-list { list-style: none; padding: 0; margin: 24px 0 0; display: grid; gap: 12px; }
 .film-list li { position: relative; padding-left: 20px; font-size: 18px; color: rgba(255,255,255,.88); will-change: opacity, transform; }
 .film-list li::before { content: ''; position: absolute; left: 0; top: .62em; width: 8px; height: 8px; border-radius: 50%; background: #fff; }
@@ -705,6 +722,82 @@ body:not(.has-film) .hero { padding-top: 32px; }
 .site-foot { border-top-color: var(--line); }
 .st-go { box-shadow: 0 10px 30px -10px rgba(0,0,0,.6); }
 
+
+/* ========== 浅色模式（拿铁色）：配色在 shop.config.json 的 themeLight，这里是加载前的默认值和几处细节 ========== */
+body:not(.admin)[data-theme="light"] {
+  --bg: #F6EFE6; --bg-2: #EFE5D8; --panel: #FFFCF8; --field: #FBF4EC;
+  --ink: #1F1712; --ink-soft: #6E5F52; --on-ink: #FBF5EE;
+  --accent: #9A5A26; --accent-dark: #7C4519; --on-accent: #FFFFFF;
+  --line: #E4D7C7; --cup-line: #2A1E16;
+  --soft-1: #EEE5F1; --soft-2: #F6EADB; --soft-3: #F6E4E3;
+  color-scheme: light;
+}
+/* 顶部压在视频上的时候，不管深浅模式，文字都用浅色 */
+.site-head.is-clear .demo-ribbon, .site-head.is-clear .logo, .site-head.is-clear .tools {
+  --ink: #F4EADF; --ink-soft: #E2D5C6; --on-ink: #16100C; --field: rgba(0,0,0,.25); --line: rgba(255,255,255,.28);
+  color: var(--ink);
+}
+@media (min-width: 761px) {
+  .site-head.is-clear .tabs { --ink: #F4EADF; --ink-soft: #E2D5C6; --on-ink: #16100C; }
+}
+[data-theme="light"] .site-head:not(.is-clear) .demo-ribbon { background: color-mix(in srgb, var(--ink) 6%, transparent); color: var(--ink-soft); }
+[data-theme="light"] .step, [data-theme="light"] .menu-card, [data-theme="light"] .result, [data-theme="light"] .co-block,
+[data-theme="light"] .co-side, [data-theme="light"] .order-card, [data-theme="light"] .store-card, [data-theme="light"] .install-card,
+[data-theme="light"] .stamp-card, [data-theme="light"] .lu-card, [data-theme="light"] .entry:hover {
+  box-shadow: 0 24px 48px -34px rgba(70,45,20,.35);
+}
+[data-theme="light"] .store-map { filter: none; }
+[data-theme="light"] .trait.caf-none, [data-theme="light"] .open-pill[data-open="true"], [data-theme="light"] .coupon-chip { color: #3C6A2C; }
+[data-theme="light"] .co-totals .disc { color: #3C6A2C; }
+[data-theme="light"] .trait.caf-low { color: #7A5A06; }
+[data-theme="light"] .trait.caf-mid { color: #8A4F17; }
+[data-theme="light"] .trait.caf-high, [data-theme="light"] .open-pill { color: #8A2F0F; }
+[data-theme="light"] .trait.swap { color: #5B4386; }
+[data-theme="light"] .form-error, [data-theme="light"] .notice.warn, [data-theme="light"] .ord-banner.warn { color: #8A2F0F; }
+[data-theme="light"] .stamp.on { color: #fff; }
+[data-theme="light"] #wheel, [data-theme="light"] .mini-wheel { filter: drop-shadow(0 14px 24px rgba(70,45,20,.25)); }
+/* 切换的时候整页颜色平滑过渡一下 */
+body.theme-switching, body.theme-switching * { transition: background-color .35s ease, color .35s ease, border-color .35s ease !important; }
+.theme-btn { width: 36px; justify-content: center; padding: 6px 0; font-size: 16px; }
+
+
+/* ========== 照片杯子（photocup.js） ========== */
+.pcup { position: relative; overflow: hidden; border-radius: 22px; isolation: isolate; background: #2A2018; }
+.pcup canvas { display: block; width: 100%; height: auto; transition: transform .5s cubic-bezier(.3,1.3,.5,1); }
+.pcup .pcup-ghost { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none; }
+.pcup.is-large canvas:first-child { transform: scale(1.06); transform-origin: 50% 70%; }
+/* 热饮：杯盖上方飘一点热气 */
+.pcup::after {
+  content: ''; position: absolute; left: 30%; right: 30%; top: 4%; height: 26%; pointer-events: none; opacity: 0;
+  background: radial-gradient(40% 60% at 40% 70%, rgba(255,255,255,.55), transparent 70%), radial-gradient(35% 50% at 65% 50%, rgba(255,255,255,.45), transparent 70%);
+  filter: blur(8px); transition: opacity .4s;
+}
+.pcup.is-hot::after { opacity: 1; animation: steam-rise 3s ease-in-out infinite; }
+@keyframes steam-rise { 0% { transform: translateY(14px) scaleX(.9); opacity: 0; } 40% { opacity: .9; } 100% { transform: translateY(-18px) scaleX(1.1); opacity: 0; } }
+
+/* 自己调一杯：大照片 */
+.cup-box { width: min(100%, 380px); }
+.cup-box::before { display: none; }
+.cup-box .pcup { border-radius: 28px; box-shadow: 0 40px 70px -40px rgba(0,0,0,.85); border: 1px solid var(--line); }
+
+/* 招牌菜单、招牌一排：照片铺满卡片上半部分 */
+.menu-cup, .menu-card:nth-child(3n+2) .menu-cup, .menu-card:nth-child(3n+3) .menu-cup { padding: 0; background: var(--bg-2); position: relative; }
+.menu-cup .pcup { border-radius: 0; width: 100%; }
+.menu-cup .pcup canvas { height: 280px; object-fit: cover; object-position: 50% 62%; }
+.menu-cup > .badge-tag { z-index: 3; }
+.lu-cup, .lu-card:nth-child(3n+2) .lu-cup, .lu-card:nth-child(3n+3) .lu-cup { padding: 0; overflow: hidden; background: var(--bg-2); display: block; }
+.lu-cup .pcup { border-radius: 18px; height: 100%; }
+.lu-cup .pcup canvas { height: 100%; object-fit: cover; object-position: 50% 62%; }
+
+/* 首页入口 */
+.entry-diy .entry-art { width: 230px; }
+.entry-diy .entry-art .pcup { border-radius: 24px; box-shadow: 0 30px 50px -30px rgba(0,0,0,.8); }
+#homeMenuCups .pcup { width: 78px; margin-right: -22px; border-radius: 16px; box-shadow: 0 16px 30px -16px rgba(0,0,0,.8); border: 2px solid var(--panel); }
+#homeMenuCups .pcup:nth-child(1) { transform: rotate(-8deg); }
+#homeMenuCups .pcup:nth-child(2) { width: 92px; position: relative; z-index: 1; }
+#homeMenuCups .pcup:nth-child(3) { transform: rotate(8deg); }
+.result-cup .pcup { border-radius: 14px; }
+
 @media (max-width: 760px) {
   :root { --topbar-h: 56px; --tabbar-h: 64px; }
   /* 注意：父元素有 backdrop-filter 时，里面 position: fixed 的元素会相对父元素定位，
@@ -751,6 +844,11 @@ body:not(.has-film) .hero { padding-top: 32px; }
     border-bottom: 1px solid var(--line);
   }
   .cup-box { width: 112px; }
+  .cup-box .pcup { border-radius: 16px; }
+  .menu-cup .pcup canvas { height: 240px; }
+  .entry-diy .entry-art { width: 110px; flex: 0 0 110px; margin: 0; }
+  #homeMenuCups .pcup { width: 50px; margin-right: -16px; }
+  #homeMenuCups .pcup:nth-child(2) { width: 58px; }
   .summary { font-size: 13px; margin: 0 0 4px; line-height: 1.45; min-height: 0; }
   .price-row { justify-content: flex-start; gap: 12px; }
   .price { font-size: 28px; }
@@ -771,7 +869,9 @@ body:not(.has-film) .hero { padding-top: 32px; }
   .store-map { grid-column: 1; grid-row: auto; min-height: 180px; }
   .co-loyalty .stamps { grid-template-columns: repeat(5, 1fr); max-width: 220px; gap: 6px; }
   .co-loyalty .stamp { font-size: 14px; }
-  .film { margin-top: 40px; }
+  .film { margin-top: 0; height: 220vh; }
+  .lu-arrows { display: none; }
+  .lu-viewport { --pad: 16px; }
   .film-shade { background: linear-gradient(0deg, rgba(0,0,0,.78) 0%, rgba(0,0,0,.35) 38%, transparent 60%), linear-gradient(180deg, var(--film-bg) 0%, transparent 12%); }
   .film-beat { top: auto; bottom: calc(var(--tabbar-h) + 20px); left: 16px; right: 16px; max-width: none; justify-content: flex-end; }
   .film .st-big { font-size: clamp(40px, 12vw, 60px); }
@@ -798,10 +898,9 @@ body:not(.has-film) .hero { padding-top: 32px; }
   .st-label b { font-size: 14px; }
   .st-label span { font-size: 12px; }
   .story-nav { display: none; }
-  .lineup-stage { padding: calc(var(--head-h) + 8px) 0 calc(var(--tabbar-h) + 8px); }
+  .lineup-stage { padding: 64px 0 40px; }
   .lu-head { flex-direction: column; align-items: flex-start; gap: 8px; padding: 0 16px; margin-bottom: 18px; }
   .lu-head p { font-size: 14px; }
-  .lu-viewport { padding: 0 16px; }
   .lu-card, .lu-cta { width: 220px; }
   .lu-cup { height: 170px; }
   .lu-cup svg { width: 104px; }

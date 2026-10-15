@@ -187,9 +187,9 @@ app.use(express.json({ limit: '64kb' }));
 
 /* ================= 顾客接口 ================= */
 app.get('/api/config', (req, res) => {
-  const { shop, theme, hours, features, story } = CONFIG;
+  const { shop, theme, themeLight, hours, features, story } = CONFIG;
   res.json({
-    shop, theme, story: story || null, hours: { open: hours.open, close: hours.close, prepMinutes: hours.prepMinutes, minutesPerDrink: PER_DRINK, demoAlwaysOpen: !!hours.demoAlwaysOpen },
+    shop, theme, themeLight: themeLight || null, story: story || null, hours: { open: hours.open, close: hours.close, prepMinutes: hours.prepMinutes, minutesPerDrink: PER_DRINK, demoAlwaysOpen: !!hours.demoAlwaysOpen },
     features, payments: { store: true, online: payments.enabled() },
     loyalty: LOYALTY ? { enabled: true, stampsNeeded: LOYALTY.stampsNeeded } : { enabled: false },
   });

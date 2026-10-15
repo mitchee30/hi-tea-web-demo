@@ -19,6 +19,15 @@
 <meta name="theme-color" content="#110C09">
 </head>
 <body class="loading">
+<script>
+  /* 深色/浅色：读上次的选择，没选过就跟系统设置走 */
+  (function () {
+    var m = null;
+    try { m = localStorage.getItem('hitea-theme'); } catch (e) {}
+    if (m !== 'light' && m !== 'dark') m = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    document.body.dataset.theme = m;
+  })();
+</script>
 
 <!-- ========== 顶部：演示标注 + 导航。固定在最上面，首页顶部是透明的，压在视频上 ========== -->
 <div class="site-head" id="siteHead">
@@ -35,6 +44,7 @@
   <div class="tools">
     <a class="order-chip" id="orderChip" hidden></a>
     <button class="icon-btn install-btn" id="installBtn" hidden><span aria-hidden="true">⤓</span><span class="tool-label" data-i18n="pwa.install"></span></button>
+    <button class="icon-btn theme-btn" id="themeBtn" data-i18n-label="tool.themeLabel"><span aria-hidden="true" id="themeIcon">☾</span></button>
     <button class="icon-btn" id="langBtn" data-i18n-label="tool.langLabel"><span data-i18n="tool.lang"></span></button>
     <button class="icon-btn" id="musicBtn" aria-pressed="false">
       <span aria-hidden="true">♪</span><span class="tool-label" data-i18n="tool.music"></span>
@@ -135,6 +145,10 @@
         <div class="lu-head">
           <h2 id="lu-title">The lineup.</h2>
           <p data-i18n="story.lineupSub"></p>
+          <div class="lu-arrows">
+            <button class="lu-arrow" id="luPrev" aria-label="Previous">←</button>
+            <button class="lu-arrow" id="luNext" aria-label="Next">→</button>
+          </div>
         </div>
         <div class="lu-viewport"><div class="lu-row" id="lineupRow"></div></div>
       </div>
@@ -387,6 +401,7 @@
 <script src="api.js"></script>
 <script src="sound.js"></script>
 <script src="cup.js"></script>
+<script src="photocup.js"></script>
 <script src="story.js"></script>
 <script src="film.js"></script>
 <script src="script.js"></script>

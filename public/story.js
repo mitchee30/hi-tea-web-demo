@@ -263,7 +263,7 @@ const Story = (() => {
         <p>${esc(L(d.desc))}</p>
         <div class="lu-foot"><span>${money(unitCents(d.preset, d.id))}</span>
           <button class="btn btn-sm" ${ok ? '' : 'disabled'}>${ok ? t('menu.add') : t('soldoutToday')}</button></div>`;
-      const c = Cup.create(card.querySelector('.lu-cup'), { size: 'sm', seed: 300 + i });
+      const c = makeCup(card.querySelector('.lu-cup'), { size: 'sm', seed: 300 + i });
       c.update(d.preset);
       c.svg.setAttribute('aria-hidden', 'true');
       card.querySelector('button').addEventListener('click', () => addToCart(d.preset, d.id));
@@ -274,6 +274,7 @@ const Story = (() => {
     cta.href = '#/diy';
     cta.innerHTML = `<strong>${t('story.build')}</strong><span aria-hidden="true">→</span>`;
     row.appendChild(cta);
+    requestAnimationFrame(() => lineupSync());
   }
 
   /* 每一帧：根据滚动位置摆好所有东西 */
@@ -348,12 +349,6 @@ const Story = (() => {
     }
 
     // 招牌一排横着滑
-    if (!lineupEl.classList.contains('is-static')) {
-      const lp = progress(lineupEl);
-      const maxShift = Math.max(0, row.scrollWidth - row.parentElement.clientWidth);
-      row.style.transform = `translateX(${-ease(span(lp, 0.08, 0.92)) * maxShift}px)`;
-      lineupEl.style.setProperty('--lp', lp.toFixed(3));
-    }
 
     // 右边的小导航
     const nav = document.getElementById('storyNav');
@@ -377,17 +372,58 @@ const Story = (() => {
     const st = matchMedia('(prefers-reduced-motion: reduce)');
     const apply = () => {
       document.getElementById('story').classList.toggle('is-static', st.matches);
-      document.getElementById('lineup').classList.toggle('is-static', st.matches);
     };
     apply();
     st.addEventListener?.('change', () => { apply(); onScroll(); });
     addEventListener('scroll', onScroll, { passive: true });
     addEventListener('resize', onScroll);
+    setupLineup();
     document.getElementById('storyNav').addEventListener('click', e => {
       const b = e.target.closest('button[data-i]');
       if (b) jump(Number(b.dataset.i));
     });
   }
+
+  /* 招牌一排：可以用触控板/手指横着滑，鼠标可以按住拖，也可以点左右箭头 */
+  function setupLineup() {
+    const vp = document.querySelector('.lu-viewport');
+    const prev = document.getElementById('luPrev'), next = document.getElementById('luNext');
+    const step = () => {
+      const card = vp.querySelector('.lu-card, .lu-cta');
+      return card ? (card.getBoundingClientRect().width + 20) * Math.max(1, Math.floor(vp.clientWidth / 300)) : 300;
+    };
+    const sync = () => {
+      prev.disabled = vp.scrollLeft <= 4;
+      next.disabled = vp.scrollLeft >= vp.scrollWidth - vp.clientWidth - 4;
+    };
+    prev.addEventListener('click', () => vp.scrollBy({ left: -step(), behavior: 'smooth' }));
+    next.addEventListener('click', () => vp.scrollBy({ left: step(), behavior: 'smooth' }));
+    vp.addEventListener('scroll', sync, { passive: true });
+    addEventListener('resize', sync);
+    // 鼠标按住拖动（触屏和触控板本来就能滑）
+    let down = null, moved = false;
+    vp.addEventListener('pointerdown', e => {
+      if (e.pointerType !== 'mouse' || e.button !== 0) return;
+      down = { x: e.clientX, left: vp.scrollLeft };
+      moved = false;
+    });
+    addEventListener('pointermove', e => {
+      if (!down) return;
+      const dx = e.clientX - down.x;
+      if (Math.abs(dx) > 5 && !moved) { moved = true; vp.classList.add('dragging'); }
+      if (moved) vp.scrollLeft = down.left - dx;
+    });
+    addEventListener('pointerup', () => {
+      if (!down) return;
+      down = null;
+      vp.classList.remove('dragging');
+    });
+    // 拖完松手时不要误点到卡片
+    vp.addEventListener('click', e => { if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; } }, true);
+    requestAnimationFrame(sync);
+    lineupSync = sync;
+  }
+  let lineupSync = () => {};
 
   return {
     setup,

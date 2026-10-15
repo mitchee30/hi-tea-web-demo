@@ -65,6 +65,24 @@
     "soft2": "#2A2017",
     "soft3": "#2B1C1E"
   },
+  "themeLight": {
+    "_readme": "浅色（拿铁色）。顾客点右上角的 ☀/☾ 切换，会记住选择。",
+    "bg": "#F6EFE6",
+    "bg2": "#EFE5D8",
+    "panel": "#FFFCF8",
+    "field": "#FBF4EC",
+    "ink": "#1F1712",
+    "inkSoft": "#6E5F52",
+    "onInk": "#FBF5EE",
+    "accent": "#9A5A26",
+    "accentDark": "#7C4519",
+    "onAccent": "#FFFFFF",
+    "line": "#E4D7C7",
+    "cupLine": "#2A1E16",
+    "soft1": "#EEE5F1",
+    "soft2": "#F6EADB",
+    "soft3": "#F6E4E3"
+  },
 
   "hours": {
     "open": "11:00",

@@ -9,7 +9,7 @@ const I18N = (() => {
     zh: {
       'ribbon': '这是一家虚构的奶茶店，用来演示网站功能，价格仅为示例',
       'nav.home': '首页', 'nav.diy': '自己调', 'nav.menu': '招牌菜单', 'nav.wheel': '今天喝什么',
-      'tool.music': '音乐', 'tool.sfx': '音效', 'tool.cart': '购物车', 'tool.lang': 'EN',
+      'tool.music': '音乐', 'tool.sfx': '音效', 'tool.cart': '购物车', 'tool.lang': 'EN', 'tool.themeLabel': '切换深色/浅色',
       'tool.langLabel': 'Switch to English', 'tool.order': '订单',
       'table.badge': '{n} 号桌',
       'home.sub': '自己动手调一杯，从招牌菜单里挑，或者让天气和心情帮你决定。',
@@ -68,7 +68,7 @@ const I18N = (() => {
     en: {
       'ribbon': 'This is a fictional shop built to demo the website. Prices are placeholders.',
       'nav.home': 'Home', 'nav.diy': 'Build', 'nav.menu': 'Menu', 'nav.wheel': 'Pick for me',
-      'tool.music': 'Music', 'tool.sfx': 'Sound', 'tool.cart': 'Cart', 'tool.lang': '中文',
+      'tool.music': 'Music', 'tool.sfx': 'Sound', 'tool.cart': 'Cart', 'tool.lang': '中文', 'tool.themeLabel': 'Switch dark / light',
       'tool.langLabel': '切换到中文', 'tool.order': 'Order',
       'table.badge': 'Table {n}',
       'home.sub': 'Build your own drink, pick from the menu, or let the weather and your mood decide.',

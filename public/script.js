@@ -224,7 +224,7 @@ function enterDiy(query) {
 }
 
 function setupDiy() {
-  diyCup = Cup.create($('diyCup'), { size: 'lg', onLand: () => Sound.plop() });
+  diyCup = makeCup($('diyCup'), { size: 'lg', onLand: () => Sound.plop() });
   $('addDiyBtn').addEventListener('click', () => addToCart(recipe, matchDrink(recipe)?.id));
   $('resetBtn').addEventListener('click', () => setRecipe(defaultRecipe(), { sound: false }));
   $('shareBtn').addEventListener('click', async () => {
@@ -258,7 +258,7 @@ function buildMenuGrid() {
           <button class="btn btn-sm" ${ok ? '' : 'disabled'}>${ok ? t('menu.add') : t('soldoutToday')}</button>
         </div>
       </div>`;
-    const cup = Cup.create(li.querySelector('.menu-cup'), { size: 'sm', seed: 101 + i });
+    const cup = makeCup(li.querySelector('.menu-cup'), { size: 'sm', seed: 101 + i });
     cup.update(d.preset);
     cup.svg.setAttribute('aria-label', L(d.name));
     li.querySelector('button').addEventListener('click', () => addToCart(d.preset, d.id));
@@ -366,11 +366,11 @@ function buildHome() {
   $('homeMenuCups').innerHTML = '';
   const ds = activeDrinks();
   if (!ds.length) return;
-  const hc = Cup.create($('homeCup'), { size: 'sm', seed: 7 });
+  const hc = makeCup($('homeCup'), { size: 'sm', seed: 7 });
   hc.update((ds.find(d => d.id === 'taro') || ds[0]).preset);
   hc.svg.setAttribute('aria-hidden', 'true');
   [0, 3, 4].map(i => ds[i % ds.length]).forEach((d, k) => {
-    const c = Cup.create($('homeMenuCups'), { size: 'sm', seed: 31 + k });
+    const c = makeCup($('homeMenuCups'), { size: 'sm', seed: 31 + k });
     c.update(d.preset);
     c.svg.setAttribute('aria-hidden', 'true');
   });
@@ -506,7 +506,7 @@ function showResult() {
   $('resultName').textContent = L(d.name);
   $('resultWhy').textContent = t('why.' + weather.kind) + t('why.' + mood.current) + (picked.makeHot ? t('why.madeHot') : '');
   $('resultCup').innerHTML = '';
-  const c = Cup.create($('resultCup'), { size: 'sm', seed: 55 });
+  const c = makeCup($('resultCup'), { size: 'sm', seed: 55 });
   c.update(picked.recipe);
   c.svg.setAttribute('aria-hidden', 'true');
   $('result').hidden = false;
@@ -957,14 +957,19 @@ function updateOrderChip() {
    9. 语言、声音、菜单实时更新、启动
    ========================================================= */
 function applyTheme() {
-  const th = CFG.theme, root = document.body.style;
+  const mode = document.body.dataset.theme === 'light' && CFG.themeLight ? 'light' : 'dark';
+  document.body.dataset.theme = mode;
+  const th = mode === 'light' ? CFG.themeLight : CFG.theme, root = document.body.style;
   const map = {
     bg: '--bg', bg2: '--bg-2', panel: '--panel', field: '--field', ink: '--ink', inkSoft: '--ink-soft', onInk: '--on-ink',
     accent: '--accent', accentDark: '--accent-dark', onAccent: '--on-accent', line: '--line', cupLine: '--cup-line',
     soft1: '--soft-1', soft2: '--soft-2', soft3: '--soft-3',
   };
   Object.entries(map).forEach(([k, v]) => { if (th[k]) root.setProperty(v, th[k]); });
+  document.querySelectorAll('meta[name=theme-color]').forEach(m => m.remove());
   document.querySelector('meta[name=viewport]').insertAdjacentHTML('afterend', `<meta name="theme-color" content="${th.bg}">`);
+  $('themeIcon').textContent = mode === 'light' ? '☾' : '☀';   // 显示"点了会变成什么"
+  $('themeBtn').hidden = !CFG.themeLight;
 }
 
 /* 顶部：首页最上面压在视频上是透明的；往下滚、或者在别的页面，变成半透明的深色 */
@@ -1015,6 +1020,7 @@ function rebuildAll() {
 async function refreshMenu() {
   try { MENU = await Api.menu(); } catch (e) { return; }
   Cup.setMenu(MENU);
+  PhotoCup.setMenu(MENU);
   const before = cart.length;
   cart = cart.filter(l => recipeOk(l.recipe));
   if (cart.length !== before) { saveCart(); toast(t('cart.removedSoldOut')); }
@@ -1031,6 +1037,14 @@ function setupTools() {
   sb.addEventListener('click', () => { Sound.setSfx(!Sound.sfxOn); sync(); });
   sync();
   $('langBtn').addEventListener('click', () => { I18N.set(I18N.lang === 'zh' ? 'en' : 'zh'); rebuildAll(); });
+  $('themeBtn').addEventListener('click', () => {
+    const next = document.body.dataset.theme === 'light' ? 'dark' : 'light';
+    document.body.dataset.theme = next;
+    try { localStorage.setItem('hitea-theme', next); } catch (e) { /* 存不了就算了 */ }
+    document.body.classList.add('theme-switching');
+    applyTheme();
+    setTimeout(() => document.body.classList.remove('theme-switching'), 400);
+  });
 }
 
 /* 从 Stripe 付款页回来（?order=..&token=..）或扫桌上二维码进来（?table=5），先整理一下网址 */
@@ -1094,6 +1108,7 @@ async function boot() {
   CFG = await Api.init();
   MENU = await Api.menu();
   Cup.setMenu(MENU);
+  PhotoCup.setMenu(MENU);
   applyTheme();
   recipe = defaultRecipe();
   setupTools();

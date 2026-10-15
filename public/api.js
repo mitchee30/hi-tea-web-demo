@@ -46,7 +46,7 @@ const Api = (() => {
     } catch (e) {
       const raw = await (await fetch(url('shop.config.json'))).json();
       config = {
-        shop: raw.shop, theme: raw.theme, features: raw.features, story: raw.story || null,
+        shop: raw.shop, theme: raw.theme, themeLight: raw.themeLight || null, features: raw.features, story: raw.story || null,
         hours: raw.hours, payments: { store: true, online: false }, menu: raw.menu,
         loyalty: raw.loyalty && raw.loyalty.enabled ? { enabled: true, stampsNeeded: raw.loyalty.stampsNeeded } : { enabled: false },
         coupons: raw.coupons || [],
