@@ -1,0 +1,7 @@
+{
+  "count": 179,
+  "bg": "#1a120c",
+  "staticAt": 0.98,
+  "desktop": { "path": "desktop/%04d.webp", "width": 1280, "height": 720, "focusX": 0.5 },
+  "mobile": { "path": "mobile/%04d.webp", "width": 720, "height": 1280, "focusX": 0.5 }
+}

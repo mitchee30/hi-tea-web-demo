@@ -20,6 +20,33 @@
     }
   },
 
+  "story": {
+    "_readme": "首页的滚动大片：把一段产品视频拆成帧（tools/make-frames.sh），往下滑就一帧帧播放。frames 指向帧的说明文件；文件不存在时自动用 SVG 版本。beats 是叠在画面上的文字，from/to 是滚动进度（0 到 1）。",
+    "frames": "media/story/frames.json",
+    "beats": [
+      { "from": 0, "to": 0.2, "side": "left",
+        "kicker": { "zh": "HI TEA · 一杯奶茶是怎么做成的", "en": "HI TEA · HOW A CUP COMES TOGETHER" },
+        "title": { "zh": "Built layer by layer.", "en": "Built layer by layer." },
+        "sub": { "zh": "往下滑，看一杯奶茶一层层做出来。", "en": "Scroll down and watch a cup come together." } },
+      { "from": 0.25, "to": 0.58, "side": "left",
+        "title": { "zh": "The stack.", "en": "The stack." },
+        "list": [
+          { "zh": "黑糖珍珠 · 慢煮，Q 弹", "en": "Brown sugar pearls · slow-cooked" },
+          { "zh": "鲜奶 · 或无乳燕麦奶", "en": "Fresh milk · or oat, dairy-free" },
+          { "zh": "茶底 · 小批量现泡", "en": "Tea · brewed in small batches" },
+          { "zh": "冰 · 去冰、少冰、正常冰", "en": "Ice · none, less or normal" },
+          { "zh": "芝士奶盖 · 现打，咸甜口", "en": "Cheese foam · whipped to order" }
+        ] },
+      { "from": 0.63, "to": 0.82, "side": "left",
+        "title": { "zh": "Poured to order.", "en": "Poured to order." },
+        "sub": { "zh": "你下单，我们才开始做。每一杯都是现做的。", "en": "We start when you order. Every cup is made fresh." } },
+      { "from": 0.87, "to": 1.01, "side": "left",
+        "title": { "zh": "Your cup. Your call.", "en": "Your cup. Your call." },
+        "sub": { "zh": "每一层都可以换。自己调一杯，或者从招牌里挑。", "en": "Every layer is yours to change. Build one, or pick a signature." },
+        "cta": { "label": { "zh": "自己调一杯", "en": "Build your own" }, "href": "#/diy" } }
+    ]
+  },
+
   "theme": {
     "bg": "#F4EEF8",
     "ink": "#2B1D3F",

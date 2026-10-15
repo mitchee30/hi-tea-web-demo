@@ -23,6 +23,7 @@ A full-stack online ordering system for small bubble tea shops: an interactive c
 - **Order again** with one tap from the order page or the cart's recent orders
 - **Installable as an app (PWA)**: add it to the home screen on Android or iPhone; it still opens without a connection
 - **Caffeine and allergen labels** on every drink, plus a dairy-free oat milk hint
+- **Scroll story on the home page**: scroll and the cup comes apart layer by layer with a label on each, then cycles through tea bases (the background glow follows the colour), then the signature lineup slides past sideways. Drawn in SVG and driven by scroll position, with no video or 3D files; with reduced motion on it just shows the exploded cup
 
 **For staff** (`/admin.html`, PIN login)
 - Real-time order board: New → Making → Waiting for pickup, with a chime and flashing card for new orders
@@ -64,6 +65,7 @@ public/                 front end (also deployed to GitHub Pages as a demo)
   i18n.js               Chinese / English text
   manifest.webmanifest  sw.js  icons/   PWA (install to home screen)
   cup.js  sound.js      animated cup, music and sound effects
+  story.js  film.js     home page scroll story: SVG version, and video frames scrubbed by scroll
   script.js  admin.js   page logic
 server/
   index.js              routes
@@ -104,6 +106,17 @@ Tip: open the customer site on your phone (same Wi-Fi, use your computer's IP) a
 Note: on Render's free plan the service sleeps after 15 minutes (the first visit then takes about 30 seconds), and **the disk is not persistent, so the SQLite database resets when the service restarts or redeploys**. That's fine for demos. For a real shop, use a paid instance with a persistent disk and set `DB_PATH` to a file on it.
 
 **Demo on GitHub Pages:** Settings → Pages → Source → **GitHub Actions**. Every push to `main` runs the tests and publishes `public/`. Without a back end the site switches to demo mode by itself: the menu comes from `shop.config.json`, orders stay on the device, and the prep steps are simulated.
+
+## Scroll film (Apple-style)
+
+The home page can play a product video frame by frame as you scroll. Make a short clip (AI video tool, 3D render, or a phone video of a real drink), then from the project folder run:
+
+```bash
+brew install ffmpeg          # once
+bash tools/make-frames.sh clip1.mp4 [clip2.mp4 ...]
+```
+
+This writes about 150 WebP frames for desktop and a 9:16 set for phones to `public/media/story/`, plus `frames.json`. The page picks them up automatically; the text over the video lives in `story.beats` in `shop.config.json` (`from`/`to` are scroll positions from 0 to 1). Delete `public/media/story` to go back to the SVG version. Options such as `FRAMES=180` or `MOBILE_FOCUS=0.6` are explained at the top of the script.
 
 ## Use it for another shop
 
@@ -151,6 +164,7 @@ Wenbo Zhi · University of Waterloo, Electrical Engineering · [github.com/mitch
 - **再来一单**：在订单页或购物车的"最近的订单"里一键再点
 - **可以安装成 App（PWA）**：安卓和 iPhone 都能添加到主屏幕，没网时也能打开
 - 每杯都有**咖啡因和过敏原标签**，含奶的会提示可以换燕麦奶
+- **首页滚动故事**：往下滚，杯子一层层拆开，每层拉出说明；接着跟着滚动换茶底，背景光跟着变色；最后招牌饮品横着滑过来。全部用 SVG 画、跟着滚动位置变化，不用视频或 3D 模型；系统开了"减少动态效果"时直接显示拆开后的样子
 
 **店员后台**（`/admin.html`，用 PIN 登录）
 - 实时订单看板：已下单 → 制作中 → 等待取餐；新订单会响铃，卡片会闪烁
@@ -211,6 +225,17 @@ npm start
 注意：Render 免费版 15 分钟没人访问就会休眠，之后第一次打开要等大约 30 秒；而且**免费版的硬盘不能长期保存数据，服务器每次重启或重新部署，SQLite 数据库都会清空**。拿来演示没问题。给真实的店用时，需要换成带持久硬盘的付费实例，并把 `DB_PATH` 指到那块硬盘上的文件。
 
 **演示版部署到 GitHub Pages：** 在 Settings → Pages → Source 里选 **GitHub Actions**。之后每次推送到 `main`，都会先自动跑测试，再发布 `public/` 文件夹。没有后端时，网站会自动进入演示模式：菜单从 `shop.config.json` 读取，订单只存在这台设备上，制作过程是模拟的。
+
+## 滚动大片（苹果官网那种效果）
+
+首页可以把一段产品视频拆成帧，往下滑就一帧帧播放。先做一段视频（AI 视频工具、3D 渲染，或者用手机拍一杯真奶茶），然后在项目文件夹里运行：
+
+```bash
+brew install ffmpeg          # 只需要装一次
+bash tools/make-frames.sh 片段1.mp4 [片段2.mp4 ...]
+```
+
+脚本会在 `public/media/story/` 生成大约 150 张电脑用的 WebP 帧、一套手机用的 9:16 竖版帧，以及 `frames.json`。网页会自动用上它们；叠在画面上的文字写在 `shop.config.json` 的 `story.beats` 里（`from`/`to` 是滚动进度，0 到 1）。删掉 `public/media/story` 就会换回 SVG 版。`FRAMES=180`、`MOBILE_FOCUS=0.6` 这些参数在脚本开头有说明。
 
 ## 给另一家店用
 

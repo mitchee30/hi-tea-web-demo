@@ -126,6 +126,7 @@ function router() {
   if (name === 'checkout') enterCheckout();
   if (name === 'order') enterOrder(query);
   if (name === 'rewards') enterRewards();
+  if (name === 'home') requestAnimationFrame(() => { Story.update(); Film.update(); });
   if ($('cartDialog').open) $('cartDialog').close();
 
   // 换页后回到顶部，并把焦点放到标题上（用键盘和读屏软件的人才知道换页了）
@@ -980,6 +981,8 @@ function rebuildAll() {
   renderDiy();
   buildMenuGrid();
   buildHome();
+  Story.rebuild();
+  if (Film.active()) Film.rebuild();
   buildFeatured();
   renderStore();
   renderInstall();
@@ -1083,9 +1086,11 @@ async function boot() {
   setupCart();
   setupOrder();
   setupPwa();
+  Story.setup();
   rebuildAll();
   Api.on('menu', refreshMenu);
   router();
+  Film.init();   // 有视频帧就换成滚动大片，没有就保持 SVG 版
   document.body.classList.remove('loading');
 }
 

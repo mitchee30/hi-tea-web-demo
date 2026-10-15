@@ -7,7 +7,7 @@
 <meta name="description" content="Order bubble tea online: build your own drink, pick from the menu, pay online or at the counter.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=ZCOOL+KuaiLe&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <!-- PWA：让网站可以"安装"到手机主屏幕 -->
 <link rel="manifest" href="manifest.webmanifest">
@@ -80,6 +80,64 @@
         </div>
       </a>
     </div>
+
+    <!-- ========== 滚动大片：视频帧跟着滚动播放（film.js）。没有帧文件时隐藏，显示下面的 SVG 版 ========== -->
+    <section class="film" id="film" aria-label="How a cup comes together" hidden>
+      <div class="film-stage">
+        <canvas id="filmCanvas" aria-hidden="true"></canvas>
+        <div class="film-shade" aria-hidden="true"></div>
+        <div class="film-beats" id="filmBeats"></div>
+        <div class="film-load" id="filmLoad" hidden></div>
+      </div>
+    </section>
+
+    <!-- ========== 滚动故事：把一杯奶茶拆开（story.js） ========== -->
+    <section class="story" id="story" aria-label="How a cup comes together" data-chapter="0">
+      <div class="story-stage">
+        <div class="st-glow" aria-hidden="true"></div><div class="st-glow two" aria-hidden="true"></div>
+        <div class="story-copy">
+          <div class="st-chap c0">
+            <p class="st-kicker" data-i18n="story.kicker"></p>
+            <h2 class="st-big">Built<br>layer by<br>layer.</h2>
+            <p class="st-sub" data-i18n="story.introSub"></p>
+            <p class="st-scroll"><span data-i18n="story.scroll"></span> <i aria-hidden="true">↓</i></p>
+          </div>
+          <div class="st-chap c1">
+            <h2 class="st-big">The<br>stack.</h2>
+            <p class="st-sub" data-i18n="story.stackSub"></p>
+          </div>
+          <div class="st-chap c2">
+            <p class="st-kicker" data-i18n="story.baseKicker"></p>
+            <h2 class="st-big st-base" id="storyBase"></h2>
+            <p class="st-sub" id="storyBaseMeta"></p>
+            <div class="st-dots" id="storyDots" aria-hidden="true"></div>
+            <a class="btn st-go" id="storyBaseGo" href="#/diy" data-i18n="story.tryBase"></a>
+          </div>
+        </div>
+        <div class="story-art">
+          <div class="st-svgbox" id="storySvgBox"></div>
+          <div class="st-labels" id="storyLabels"></div>
+        </div>
+        <nav class="story-nav" id="storyNav" aria-label="Story">
+          <button data-i="0"><span data-i18n="story.nav.intro"></span></button>
+          <button data-i="1"><span data-i18n="story.nav.stack"></span></button>
+          <button data-i="2"><span data-i18n="story.nav.base"></span></button>
+          <button data-i="3"><span data-i18n="story.nav.lineup"></span></button>
+        </nav>
+      </div>
+    </section>
+
+    <!-- ========== 招牌一排横着滑 ========== -->
+    <section class="lineup" id="lineup" aria-labelledby="lu-title">
+      <div class="lineup-stage">
+        <p class="lu-bg" aria-hidden="true">The lineup.</p>
+        <div class="lu-head">
+          <h2 id="lu-title">The lineup.</h2>
+          <p data-i18n="story.lineupSub"></p>
+        </div>
+        <div class="lu-viewport"><div class="lu-row" id="lineupRow"></div></div>
+      </div>
+    </section>
 
     <!-- 新品与限定 -->
     <div class="featured" id="featured" hidden>
@@ -328,6 +386,8 @@
 <script src="api.js"></script>
 <script src="sound.js"></script>
 <script src="cup.js"></script>
+<script src="story.js"></script>
+<script src="film.js"></script>
 <script src="script.js"></script>
 </body>
 </html>
