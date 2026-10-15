@@ -7,7 +7,7 @@
 <meta name="description" content="Order bubble tea online: build your own drink, pick from the menu, pay online or at the counter.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=ZCOOL+KuaiLe&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <!-- PWA：让网站可以"安装"到手机主屏幕 -->
 <link rel="manifest" href="manifest.webmanifest">
@@ -16,13 +16,13 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Hi Tea">
-<meta name="theme-color" content="#F4EEF8">
+<meta name="theme-color" content="#110C09">
 </head>
 <body class="loading">
 
+<!-- ========== 顶部：演示标注 + 导航。固定在最上面，首页顶部是透明的，压在视频上 ========== -->
+<div class="site-head" id="siteHead">
 <div class="demo-ribbon" id="ribbon" data-i18n="ribbon" hidden></div>
-
-<!-- ========== 顶部导航：每个页面都一样 ========== -->
 <header class="topbar">
   <a class="logo display" href="#/" id="logo">Hi Tea</a>
   <span class="table-badge" id="tableBadge" hidden></span>
@@ -48,10 +48,20 @@
     </button>
   </div>
 </header>
+</div>
 
 <main>
   <!-- ========== 首页：三个入口 ========== -->
   <section class="view view-home" id="view-home" aria-labelledby="home-title">
+    <!-- ========== 滚动大片：视频帧跟着滚动播放（film.js）。没有帧文件时隐藏，显示下面的 SVG 版 ========== -->
+    <section class="film" id="film" aria-label="How a cup comes together" hidden>
+      <div class="film-stage">
+        <canvas id="filmCanvas" aria-hidden="true"></canvas>
+        <div class="film-shade" aria-hidden="true"></div>
+        <div class="film-beats" id="filmBeats"></div>
+        <div class="film-load" id="filmLoad" hidden></div>
+      </div>
+    </section>
     <div class="hero">
       <h1 id="home-title" tabindex="-1"></h1>
       <p class="hero-sub" data-i18n="home.sub"></p>
@@ -81,15 +91,6 @@
       </a>
     </div>
 
-    <!-- ========== 滚动大片：视频帧跟着滚动播放（film.js）。没有帧文件时隐藏，显示下面的 SVG 版 ========== -->
-    <section class="film" id="film" aria-label="How a cup comes together" hidden>
-      <div class="film-stage">
-        <canvas id="filmCanvas" aria-hidden="true"></canvas>
-        <div class="film-shade" aria-hidden="true"></div>
-        <div class="film-beats" id="filmBeats"></div>
-        <div class="film-load" id="filmLoad" hidden></div>
-      </div>
-    </section>
 
     <!-- ========== 滚动故事：把一杯奶茶拆开（story.js） ========== -->
     <section class="story" id="story" aria-label="How a cup comes together" data-chapter="0">

@@ -116,9 +116,7 @@ async function boot() {
     $('loginForm').querySelector('button').disabled = true;
     return;
   }
-  const th = CFG.theme, root = document.documentElement.style;
-  Object.entries({ bg: '--bg', ink: '--ink', inkSoft: '--ink-soft', accent: '--accent', accentDark: '--accent-dark', line: '--line', soft1: '--soft-1', soft2: '--soft-2', soft3: '--soft-3' })
-    .forEach(([k, v]) => { if (th[k]) root.setProperty(v, th[k]); });
+  // 后台放在柜台的平板上，用浅色更清楚，不套顾客端的深色主题
   $('loginShop').textContent = CFG.shop.name;
   $('shopName').textContent = CFG.shop.name;
   try { token = sessionStorage.getItem('hitea-staff'); } catch (e) { token = null; }

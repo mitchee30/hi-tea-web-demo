@@ -48,15 +48,22 @@
   },
 
   "theme": {
-    "bg": "#F4EEF8",
-    "ink": "#2B1D3F",
-    "inkSoft": "#6B5C80",
-    "accent": "#9A5A26",
-    "accentDark": "#7C4519",
-    "line": "#DDD0E8",
-    "soft1": "#E4D7F4",
-    "soft2": "#FFF1DE",
-    "soft3": "#FBE0E7"
+    "_readme": "深色咖啡店配色（跟首页视频一个色调）。bg 背景、panel 卡片、field 输入框和选项、ink 文字、accent 焦糖色按钮、cupLine 杯子轮廓。",
+    "bg": "#110C09",
+    "bg2": "#17110D",
+    "panel": "#1C1511",
+    "field": "#241B15",
+    "ink": "#F4EADF",
+    "inkSoft": "#B3A393",
+    "onInk": "#16100C",
+    "accent": "#D9A066",
+    "accentDark": "#E9B985",
+    "onAccent": "#1A120C",
+    "line": "#3A2E25",
+    "cupLine": "#EADBC8",
+    "soft1": "#261D27",
+    "soft2": "#2A2017",
+    "soft3": "#2B1C1E"
   },
 
   "hours": {

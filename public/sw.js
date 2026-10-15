@@ -3,7 +3,7 @@
    - 网页、脚本、样式：先上网拿最新的，拿不到才用缓存（network-first），所以改了代码不用担心顾客看到旧版
    - 字体：先用缓存（cache-first），字体不会变
    - /api、/ws、店员后台：永远不缓存（订单和菜单必须是实时的） */
-const VERSION = 'hitea-v6';
+const VERSION = 'hitea-v7';
 const CORE = ['./', 'index.html', 'style.css', 'script.js', 'api.js', 'i18n.js', 'pricing.js', 'cup.js', 'story.js', 'film.js', 'sound.js',
   'shop.config.json', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png'];
 

@@ -127,6 +127,7 @@ function router() {
   if (name === 'order') enterOrder(query);
   if (name === 'rewards') enterRewards();
   if (name === 'home') requestAnimationFrame(() => { Story.update(); Film.update(); });
+  updateHead();
   if ($('cartDialog').open) $('cartDialog').close();
 
   // 换页后回到顶部，并把焦点放到标题上（用键盘和读屏软件的人才知道换页了）
@@ -411,7 +412,7 @@ function drawWheel(target, mini) {
     const flip = mid > 180;
     const text = svgEl('text', {
       x: tx, y: ty, 'text-anchor': 'middle', 'dominant-baseline': 'central',
-      'font-family': 'ZCOOL KuaiLe, sans-serif', 'font-size': I18N.lang === 'en' ? 19 : 23,
+      'font-family': 'Anton, Noto Sans SC, sans-serif', 'font-weight': 900, 'font-size': I18N.lang === 'en' ? 19 : 23,
       fill: DARK_SEGS.includes(color) ? '#fff' : '#2B1D3F',
       transform: `rotate(${flip ? mid + 90 : mid - 90} ${tx} ${ty})`,
     }, g);
@@ -956,16 +957,31 @@ function updateOrderChip() {
    9. 语言、声音、菜单实时更新、启动
    ========================================================= */
 function applyTheme() {
-  const th = CFG.theme, root = document.documentElement.style;
-  const map = { bg: '--bg', ink: '--ink', inkSoft: '--ink-soft', accent: '--accent', accentDark: '--accent-dark', line: '--line', soft1: '--soft-1', soft2: '--soft-2', soft3: '--soft-3' };
+  const th = CFG.theme, root = document.body.style;
+  const map = {
+    bg: '--bg', bg2: '--bg-2', panel: '--panel', field: '--field', ink: '--ink', inkSoft: '--ink-soft', onInk: '--on-ink',
+    accent: '--accent', accentDark: '--accent-dark', onAccent: '--on-accent', line: '--line', cupLine: '--cup-line',
+    soft1: '--soft-1', soft2: '--soft-2', soft3: '--soft-3',
+  };
   Object.entries(map).forEach(([k, v]) => { if (th[k]) root.setProperty(v, th[k]); });
   document.querySelector('meta[name=viewport]').insertAdjacentHTML('afterend', `<meta name="theme-color" content="${th.bg}">`);
 }
+
+/* 顶部：首页最上面压在视频上是透明的；往下滚、或者在别的页面，变成半透明的深色 */
+function updateHead() {
+  const head = $('siteHead');
+  document.body.style.setProperty('--head-h', head.offsetHeight + 'px');
+  const clear = currentRoute === 'home' && document.body.classList.contains('has-film') && scrollY < 40;
+  head.classList.toggle('is-clear', clear);
+}
+addEventListener('scroll', () => requestAnimationFrame(updateHead), { passive: true });
+addEventListener('resize', updateHead);
 
 function renderAllText() {
   I18N.apply();
   $('logo').textContent = CFG.shop.name;
   $('ribbon').hidden = !CFG.shop.fictional;
+  requestAnimationFrame(updateHead);
   $('tableBadge').hidden = !table;
   if (table) $('tableBadge').textContent = t('table.badge', { n: table });
   $('navWheel').hidden = !CFG.features.wheel;
@@ -1090,7 +1106,7 @@ async function boot() {
   rebuildAll();
   Api.on('menu', refreshMenu);
   router();
-  Film.init();   // 有视频帧就换成滚动大片，没有就保持 SVG 版
+  Film.init().then(ok => { document.body.classList.toggle('has-film', !!ok); updateHead(); });   // 有视频帧就换成滚动大片，没有就保持 SVG 版
   document.body.classList.remove('loading');
 }
 
